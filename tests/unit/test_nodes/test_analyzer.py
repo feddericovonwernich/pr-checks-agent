@@ -255,7 +255,7 @@ class TestFailureAnalyzerNode:
 
         mock_llm_instance = AsyncMock()
         mock_llm_service.return_value = mock_llm_instance
-        mock_llm_instance._arun.side_effect = Exception("Network timeout")
+        mock_llm_instance.analyze_failure.side_effect = Exception("Network timeout")
 
         result = await failure_analyzer_node(base_state)
 
@@ -329,13 +329,13 @@ class TestFailureAnalyzerNode:
                 "attempt_id": "attempt_2",
             },
         ]
-        mock_llm_instance._arun.side_effect = mock_responses
+        mock_llm_instance.analyze_failure.side_effect = mock_responses
 
         result = await failure_analyzer_node(base_state)
 
         # Verify both failures were analyzed
         assert len(result["analysis_results"]) == 2
-        assert mock_llm_instance._arun.call_count == 2
+        assert mock_llm_instance.analyze_failure.call_count == 2
 
         # Verify analysis stats
         stats = result["analysis_stats"]
@@ -374,9 +374,11 @@ class TestFailureAnalyzerNode:
             "attempt_id": "test_id",
         }
 
-        # Verify dry_run is passed to Claude tool
+        # Verify LLM service is created with env config
         await failure_analyzer_node(base_state)
-        mock_llm_service.assert_called_once_with(dry_run=True)
+        mock_llm_service.assert_called_once_with({
+            "provider": "openai", "model": "gpt-4", "api_key": "test-key", "base_url": None
+        })
 
 
 class TestGetFailureContext:
@@ -632,7 +634,7 @@ class TestAnalyzerIntegration:
                 "attempt_id": "test_analysis_1",
             },
         ]
-        mock_llm_instance._arun.side_effect = mock_responses
+        mock_llm_instance.analyze_failure.side_effect = mock_responses
 
         # Step 1: Analyze failures
         analyzed_state = await failure_analyzer_node(state)
