@@ -87,7 +87,7 @@ class TestFailureAnalyzerNode:
     @patch("src.nodes.analyzer.GitHubTool")
     @patch("src.nodes.analyzer.LLMService")
     @pytest.mark.asyncio
-    async def test_failure_analyzer_node_successful_analysis(
+    async def test_failure_analyzer_node_successful_analysis(  # noqa: PLR0913
         self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state, sample_pr_state, sample_prioritized_failure
     ):
         """Test successful failure analysis."""
@@ -160,7 +160,7 @@ class TestFailureAnalyzerNode:
     @patch("src.nodes.analyzer.GitHubTool")
     @patch("src.nodes.analyzer.LLMService")
     @pytest.mark.asyncio
-    async def test_failure_analyzer_node_unfixable_analysis(
+    async def test_failure_analyzer_node_unfixable_analysis(  # noqa: PLR0913
         self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state, sample_pr_state, sample_prioritized_failure
     ):
         """Test analysis that determines issue is not fixable."""
@@ -168,7 +168,7 @@ class TestFailureAnalyzerNode:
         mock_load_env_config.return_value = {
             "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test-key", "base_url": None}
         }
-        
+
         base_state["active_prs"] = {123: sample_pr_state}
         base_state["prioritized_failures"] = [sample_prioritized_failure]
 
@@ -203,7 +203,7 @@ class TestFailureAnalyzerNode:
     @patch("src.nodes.analyzer.GitHubTool")
     @patch("src.nodes.analyzer.LLMService")
     @pytest.mark.asyncio
-    async def test_failure_analyzer_node_claude_analysis_failure(
+    async def test_failure_analyzer_node_claude_analysis_failure(  # noqa: PLR0913
         self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state, sample_pr_state, sample_prioritized_failure
     ):
         """Test when Claude analysis fails."""
@@ -211,7 +211,7 @@ class TestFailureAnalyzerNode:
         mock_load_env_config.return_value = {
             "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test-key", "base_url": None}
         }
-        
+
         base_state["active_prs"] = {123: sample_pr_state}
         base_state["prioritized_failures"] = [sample_prioritized_failure]
 
@@ -237,7 +237,7 @@ class TestFailureAnalyzerNode:
     @patch("src.nodes.analyzer.GitHubTool")
     @patch("src.nodes.analyzer.LLMService")
     @pytest.mark.asyncio
-    async def test_failure_analyzer_node_unexpected_exception(
+    async def test_failure_analyzer_node_unexpected_exception(  # noqa: PLR0913
         self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state, sample_pr_state, sample_prioritized_failure
     ):
         """Test analyzer with unexpected exception."""
@@ -245,7 +245,7 @@ class TestFailureAnalyzerNode:
         mock_load_env_config.return_value = {
             "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test-key", "base_url": None}
         }
-        
+
         base_state["active_prs"] = {123: sample_pr_state}
         base_state["prioritized_failures"] = [sample_prioritized_failure]
 
@@ -268,13 +268,15 @@ class TestFailureAnalyzerNode:
     @patch("src.nodes.analyzer.GitHubTool")
     @patch("src.nodes.analyzer.LLMService")
     @pytest.mark.asyncio
-    async def test_failure_analyzer_node_multiple_failures(self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state):
+    async def test_failure_analyzer_node_multiple_failures(
+        self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state
+    ):
         """Test analyzer with multiple failures."""
         # Mock environment config to return LLM config
         mock_load_env_config.return_value = {
             "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test-key", "base_url": None}
         }
-        
+
         # Setup multiple PR states
         pr_state_1 = {
             "pr_number": 123,
@@ -344,7 +346,7 @@ class TestFailureAnalyzerNode:
     @patch("src.nodes.analyzer.GitHubTool")
     @patch("src.nodes.analyzer.LLMService")
     @pytest.mark.asyncio
-    async def test_failure_analyzer_node_dry_run_mode(
+    async def test_failure_analyzer_node_dry_run_mode(  # noqa: PLR0913
         self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state, sample_pr_state, sample_prioritized_failure
     ):
         """Test analyzer in dry run mode."""
@@ -352,7 +354,7 @@ class TestFailureAnalyzerNode:
         mock_load_env_config.return_value = {
             "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test-key", "base_url": None}
         }
-        
+
         base_state["dry_run"] = True
         base_state["active_prs"] = {123: sample_pr_state}
         base_state["prioritized_failures"] = [sample_prioritized_failure]
@@ -553,7 +555,7 @@ class TestAnalyzerIntegration:
         mock_load_env_config.return_value = {
             "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test-key", "base_url": None}
         }
-        
+
         # Setup complex state with multiple failures
         config = RepositoryConfig(
             owner="test-org", repo="test-repo", claude_context={"language": "python", "framework": "django"}
