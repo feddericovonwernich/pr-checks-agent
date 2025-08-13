@@ -161,11 +161,9 @@ pytest tests/ --cov=src --cov-report=html
 
 ### Code Quality
 ```bash
-# Linting
-flake8 src/
-
-# Formatting
-black src/
+# Linting and formatting with Ruff
+ruff check src/ tests/
+ruff format src/ tests/
 
 # Type checking  
 mypy src/

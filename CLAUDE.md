@@ -316,8 +316,8 @@ python -m pytest tests/test_integration/ --workflow-sim
 
 ### Linting
 ```bash
-flake8 src/
-black src/
+ruff check src/ tests/
+ruff format src/ tests/
 mypy src/
 ```
 
