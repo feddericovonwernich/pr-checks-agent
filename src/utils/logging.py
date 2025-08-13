@@ -98,11 +98,12 @@ def _json_formatter(record: loguru.Record) -> str:
 
     # Add exception information if present
     if record["exception"]:
-        log_entry["exception"] = {
+        exc_info = {
             "type": record["exception"].type.__name__ if record["exception"].type else None,
             "value": str(record["exception"].value) if record["exception"].value else None,
             "traceback": record["exception"].traceback if record["exception"].traceback else None,
         }
+        log_entry["exception"] = exc_info
 
     # Add extra fields from record["extra"]
     if record["extra"]:

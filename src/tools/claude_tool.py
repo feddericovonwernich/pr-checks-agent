@@ -244,7 +244,8 @@ Make only the changes necessary to fix this specific issue.
 
             # Set environment
             env = os.environ.copy()
-            env["ANTHROPIC_API_KEY"] = self.anthropic_api_key
+            if self.anthropic_api_key:
+                env["ANTHROPIC_API_KEY"] = self.anthropic_api_key
 
             # Execute command
             process = await asyncio.create_subprocess_exec(

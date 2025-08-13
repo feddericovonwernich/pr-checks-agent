@@ -75,7 +75,7 @@ class Config(BaseModel):
         """Validate that all required environment variables are set.
         Returns validation results.
         """
-        validation_results = {"valid": True, "missing_vars": [], "warnings": []}
+        validation_results: dict[str, Any] = {"valid": True, "missing_vars": [], "warnings": []}
 
         # Required environment variables
         required_vars = ["GITHUB_TOKEN", "ANTHROPIC_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"]

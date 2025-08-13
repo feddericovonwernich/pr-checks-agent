@@ -39,13 +39,13 @@ class StatePersistence:
             logger.error(f"Failed to connect to Redis: {e}")
             raise
 
-    def _serialize_state(self, state: dict[str, Any]) -> bytes:
+    def _serialize_state(self, state: Any) -> bytes:
         """Serialize state for storage."""
         # Convert datetime objects and other non-JSON types
         serializable_state = self._make_serializable(state)
         return pickle.dumps(serializable_state)
 
-    def _deserialize_state(self, data: bytes) -> dict[str, Any]:
+    def _deserialize_state(self, data: bytes) -> Any:
         """Deserialize state from storage."""
         return pickle.loads(data)
 
@@ -81,7 +81,7 @@ class StatePersistence:
             if data:
                 state = self._deserialize_state(data)
                 logger.debug(f"Loaded monitor state for {repository}")
-                return state
+                return state  # type: ignore[return-value]
             return None
         except Exception as e:
             logger.error(f"Failed to load monitor state for {repository}: {e}")
@@ -107,7 +107,7 @@ class StatePersistence:
             if data:
                 state = self._deserialize_state(data)
                 logger.debug(f"Loaded PR state for {repository}#{pr_number}")
-                return state
+                return state  # type: ignore[return-value]
             return None
         except Exception as e:
             logger.error(f"Failed to load PR state for {repository}#{pr_number}: {e}")
@@ -130,7 +130,7 @@ class StatePersistence:
         try:
             pattern = f"pr_state:{repository}:*"
             keys = self.redis_client.keys(pattern)
-            active_prs = {}
+            active_prs: dict[int, PRState] = {}
 
             for key in keys:
                 # Extract PR number from key
@@ -138,7 +138,7 @@ class StatePersistence:
                 data = self.redis_client.get(key)
                 if data:
                     state = self._deserialize_state(data)
-                    active_prs[pr_number] = state
+                    active_prs[pr_number] = state  # type: ignore[assignment]
 
             logger.debug(f"Loaded {len(active_prs)} active PRs for {repository}")
             return active_prs
@@ -149,7 +149,8 @@ class StatePersistence:
     def increment_counter(self, key: str, amount: int = 1) -> int:
         """Increment a counter and return new value."""
         try:
-            return self.redis_client.incr(key, amount)
+            result = self.redis_client.incr(key, amount)
+            return int(result)  # Ensure we return an int
         except Exception as e:
             logger.error(f"Failed to increment counter {key}: {e}")
             return 0
@@ -170,7 +171,7 @@ class StatePersistence:
         """Get counter value."""
         try:
             value = self.redis_client.get(key)
-            return int(value) if value else 0
+            return int(value) if value is not None else 0
         except Exception as e:
             logger.error(f"Failed to get counter {key}: {e}")
             return 0
