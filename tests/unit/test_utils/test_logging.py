@@ -94,7 +94,7 @@ class TestJsonFormatter:
         mock_level = Mock()
         mock_level.name = "INFO"
         mock_thread = Mock()
-        mock_thread.name = "MainThread" 
+        mock_thread.name = "MainThread"
         mock_process = Mock()
         mock_process.name = "MainProcess"
 

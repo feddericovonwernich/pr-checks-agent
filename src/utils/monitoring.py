@@ -7,7 +7,7 @@ from typing import Any, TypedDict
 
 from aiohttp import web
 from loguru import logger
-from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, Gauge, Histogram, generate_latest
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest
 
 
 class RepositoryStats(TypedDict, total=False):
