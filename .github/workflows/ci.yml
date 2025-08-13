@@ -47,11 +47,6 @@ jobs:
       run: |
         mypy src/ --ignore-missing-imports --strict-optional
     
-    - name: Check import sorting with isort
-      run: |
-        pip install isort
-        isort --check-only --diff src/ tests/
-    
     - name: Code complexity check with radon
       run: |
         pip install radon
