@@ -6,8 +6,8 @@ pytest-mock>=3.11.0
 pytest-benchmark>=4.0.0
 
 # Integration Testing
-testcontainers>=4.0.0
-testcontainers-redis>=1.0.0
+testcontainers>=3.7.0,<4.0.0
+testcontainers-redis>=0.0.1rc1
 httpx>=0.25.0
 wiremock>=2.6.0
 
