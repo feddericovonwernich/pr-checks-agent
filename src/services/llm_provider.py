@@ -7,9 +7,25 @@ Supports multiple LLM providers:
 - Azure OpenAI
 """
 
+import json
 import os
 from abc import ABC, abstractmethod
 from typing import Any
+
+try:
+    import anthropic
+except ImportError:
+    anthropic = None
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
+
+try:
+    import openai
+except ImportError:
+    openai = None
 
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -60,25 +76,17 @@ class OpenAIProvider(BaseLLMProvider):
         self.base_url = kwargs.get("base_url")
         self._client = None
 
-    def _get_client(self):
+    def _get_client(self) -> "openai.AsyncOpenAI":  # type: ignore[return]
         """Lazy initialization of OpenAI client."""
         if self._client is None:
-            try:
-                import openai
-
-                self._client = openai.AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
-            except ImportError:
+            if openai is None:
                 raise ImportError("openai package required for OpenAI provider. Install with: pip install openai")
+            self._client = openai.AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
         return self._client
 
     def is_available(self) -> bool:
         """Check if OpenAI is properly configured."""
-        try:
-            import openai
-
-            return self.api_key is not None
-        except ImportError:
-            return False
+        return openai is not None and self.api_key is not None
 
     async def generate(
         self, messages: list[LLMMessage], temperature: float = 0.1, max_tokens: int | None = None, **kwargs
@@ -128,25 +136,17 @@ class AnthropicProvider(BaseLLMProvider):
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         self._client = None
 
-    def _get_client(self):
+    def _get_client(self) -> "anthropic.AsyncAnthropic":
         """Lazy initialization of Anthropic client."""
         if self._client is None:
-            try:
-                import anthropic
-
-                self._client = anthropic.AsyncAnthropic(api_key=self.api_key)
-            except ImportError:
+            if anthropic is None:
                 raise ImportError("anthropic package required for Anthropic provider. Install with: pip install anthropic")
+            self._client = anthropic.AsyncAnthropic(api_key=self.api_key)
         return self._client
 
     def is_available(self) -> bool:
         """Check if Anthropic is properly configured."""
-        try:
-            import anthropic
-
-            return self.api_key is not None
-        except ImportError:
-            return False
+        return anthropic is not None and self.api_key is not None
 
     async def generate(
         self, messages: list[LLMMessage], temperature: float = 0.1, max_tokens: int | None = None, **kwargs
@@ -206,26 +206,18 @@ class OllamaProvider(BaseLLMProvider):
         self.base_url = base_url
         self._client = None
 
-    def _get_client(self):
+    def _get_client(self) -> "httpx.AsyncClient":
         """Lazy initialization of HTTP client for Ollama."""
         if self._client is None:
-            try:
-                import httpx
-
-                self._client = httpx.AsyncClient(base_url=self.base_url, timeout=60.0)
-            except ImportError:
+            if httpx is None:
                 raise ImportError("httpx package required for Ollama provider. Install with: pip install httpx")
+            self._client = httpx.AsyncClient(base_url=self.base_url, timeout=60.0)
         return self._client
 
     def is_available(self) -> bool:
         """Check if Ollama is available."""
-        try:
-            import httpx
-
-            # Could add a ping to Ollama server here
-            return True
-        except ImportError:
-            return False
+        # Could add a ping to Ollama server here
+        return httpx is not None
 
     async def generate(
         self, messages: list[LLMMessage], temperature: float = 0.1, max_tokens: int | None = None, **kwargs
@@ -300,13 +292,13 @@ class LLMService:
         raise ValueError(f"Unsupported LLM provider: {provider_name}")
 
     async def analyze_failure(
-        self, failure_context: str, check_name: str, pr_info: dict[str, Any], project_context: dict[str, str] = None
+        self, failure_context: str, check_name: str, pr_info: dict[str, Any], project_context: dict[str, str] | None = None
     ) -> dict[str, Any]:
         """Analyze a CI/CD failure and determine next steps."""
         if project_context is None:
             project_context = {}
 
-        system_prompt = """You are an expert software engineer analyzing CI/CD failures. 
+        system_prompt = """You are an expert software engineer analyzing CI/CD failures.
 Your job is to understand what went wrong and determine if the issue is fixable automatically.
 
 Respond with a JSON object containing:
@@ -349,8 +341,6 @@ Please analyze this failure and provide your assessment in JSON format.
             }
 
         try:
-            import json
-
             analysis = json.loads(response.content)
             analysis["success"] = True
             analysis["llm_provider"] = response.provider
@@ -365,7 +355,7 @@ Please analyze this failure and provide your assessment in JSON format.
             }
 
     async def should_escalate(
-        self, failure_info: dict[str, Any], fix_attempts: int, max_attempts: int, project_context: dict[str, str] = None
+        self, failure_info: dict[str, Any], fix_attempts: int, max_attempts: int, project_context: dict[str, str] | None = None
     ) -> dict[str, Any]:
         """Determine if an issue should be escalated to humans."""
         if project_context is None:
@@ -417,8 +407,6 @@ Should this issue be escalated to human developers? Provide your decision in JSO
             }
 
         try:
-            import json
-
             escalation = json.loads(response.content)
             escalation["llm_provider"] = response.provider
             escalation["llm_model"] = response.model

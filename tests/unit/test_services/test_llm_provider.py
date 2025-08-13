@@ -67,7 +67,11 @@ class TestLLMService:
         # Create mock response object
         mock_llm_response = MagicMock()
         mock_llm_response.success = True
-        mock_llm_response.content = '{"fixable": true, "severity": "medium", "category": "test_failure", "analysis": "Test failed due to missing dependency", "suggested_fix": "Install missing dependency", "confidence": 0.9}'
+        mock_llm_response.content = (
+            '{"fixable": true, "severity": "medium", "category": "test_failure", '
+            '"analysis": "Test failed due to missing dependency", '
+            '"suggested_fix": "Install missing dependency", "confidence": 0.9}'
+        )
         mock_llm_response.provider = "openai"
         mock_llm_response.model = "gpt-4"
 
@@ -99,7 +103,11 @@ class TestLLMService:
         # Create mock response object
         mock_llm_response = MagicMock()
         mock_llm_response.success = True
-        mock_llm_response.content = '{"should_escalate": true, "urgency": "high", "reason": "Security vulnerability detected", "suggested_actions": ["Manual security review"], "escalation_message": "Critical security issue needs immediate attention"}'
+        mock_llm_response.content = (
+            '{"should_escalate": true, "urgency": "high", "reason": "Security vulnerability detected", '
+            '"suggested_actions": ["Manual security review"], '
+            '"escalation_message": "Critical security issue needs immediate attention"}'
+        )
         mock_llm_response.provider = "openai"
         mock_llm_response.model = "gpt-4"
 
@@ -184,7 +192,7 @@ class TestAnthropicProvider:
         # Mock anthropic package to be available
         with patch("builtins.__import__") as mock_import:
 
-            def side_effect(name, *args):
+            def side_effect(name: str, *args: object, **kwargs: object) -> object:
                 if name == "anthropic":
                     return MagicMock()  # Return a mock anthropic module
                 return __import__(name, *args)
