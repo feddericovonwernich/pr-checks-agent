@@ -7,8 +7,8 @@ from typing import Any
 
 from loguru import logger
 
-from state.schemas import MonitorState
 from services.llm_provider import LLMService
+from state.schemas import MonitorState
 from tools.github_tool import GitHubTool
 
 
@@ -32,7 +32,7 @@ async def failure_analyzer_node(state: MonitorState) -> dict[str, Any]:
     logger.info(f"Analyzing {len(prioritized_failures)} failed checks in {repository}")
 
     github_tool = GitHubTool()
-    
+
     # Initialize LLM service for decision-making
     llm_config = {
         "provider": config.llm.provider,

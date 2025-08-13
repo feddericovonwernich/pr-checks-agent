@@ -91,13 +91,10 @@ class TestFailureAnalyzerNode:
     ):
         """Test successful failure analysis."""
         # Add LLM config to the base state's config
-        base_state["config"].llm = type('LLMConfig', (), {
-            'provider': 'openai',
-            'model': 'gpt-4',
-            'effective_api_key': 'test-key',
-            'base_url': None
-        })()
-        
+        base_state["config"].llm = type(
+            "LLMConfig", (), {"provider": "openai", "model": "gpt-4", "effective_api_key": "test-key", "base_url": None}
+        )()
+
         base_state["active_prs"] = {123: sample_pr_state}
         base_state["prioritized_failures"] = [sample_prioritized_failure]
 
@@ -117,7 +114,7 @@ class TestFailureAnalyzerNode:
             "severity": "medium",
             "category": "syntax_error",
             "llm_provider": "openai",
-            "llm_model": "gpt-4"
+            "llm_model": "gpt-4",
         }
 
         result = await failure_analyzer_node(base_state)
