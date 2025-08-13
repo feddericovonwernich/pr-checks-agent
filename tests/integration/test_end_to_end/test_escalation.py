@@ -29,22 +29,33 @@ class TestEscalationWorkflow:
         await self._setup_github_mocks_persistent_failure(setup["github_api_base_url"])
         await self._setup_telegram_mock_escalation(setup["telegram_api_base_url"])
 
-        with patch("src.nodes.scanner.github") as mock_github, \
-             patch("src.nodes.monitor.github") as mock_monitor, \
-             patch("src.nodes.invoker.anthropic") as mock_claude, \
-             patch("src.nodes.escalation.telegram") as mock_telegram:
+        with patch("nodes.scanner.GitHubTool") as mock_github_tool, \
+             patch("nodes.invoker.ClaudeCodeTool") as mock_claude_tool, \
+             patch("nodes.escalation.TelegramTool") as mock_telegram_tool:
 
-            # Mock GitHub API calls
-            mock_github.get_repository_pulls.return_value = [create_test_pr_data(123)]
-            mock_monitor.get_check_runs.return_value = [
-                create_test_check_data("ci/test", "failure")
-            ]
+            # Mock GitHub API tool calls
+            mock_github_instance = AsyncMock()
+            mock_github_tool.return_value = mock_github_instance
+            mock_github_instance._arun.return_value = {
+                "success": True,
+                "prs": [create_test_pr_data(123)]
+            }
 
-            # Mock Claude API calls - always fail fixes
-            mock_claude.messages.create = AsyncMock(return_value=create_claude_fix_response(False))
+            # Mock Claude API tool calls - always fail fixes
+            mock_claude_instance = AsyncMock()
+            mock_claude_tool.return_value = mock_claude_instance
+            mock_claude_instance._arun.return_value = {
+                "success": False,
+                "error": "Unable to fix the issue"
+            }
 
-            # Mock Telegram API calls
-            mock_telegram.send_message = AsyncMock(return_value={"ok": True, "message_id": 123})
+            # Mock Telegram API tool calls
+            mock_telegram_instance = AsyncMock()
+            mock_telegram_tool.return_value = mock_telegram_instance
+            mock_telegram_instance._arun.return_value = {
+                "success": True,
+                "message_id": 123
+            }
 
             # Create the monitoring graph
             graph = create_monitor_graph(
@@ -95,7 +106,7 @@ class TestEscalationWorkflow:
             assert fix_attempts >= 2, f"Should have attempted fixes {config.repositories[0].fix_limits['max_attempts']} times"
 
             # Verify Telegram notification was sent
-            mock_telegram.send_message.assert_called()
+            mock_telegram_instance._arun.assert_called()
 
             # Verify escalation state persistence
             await self._verify_escalation_persistence(redis_client, "test-org/test-repo", pr_number=123)
@@ -105,28 +116,34 @@ class TestEscalationWorkflow:
         setup = integration_test_setup
         config = setup["config"]
 
-        with patch("src.nodes.scanner.github") as mock_github, \
-             patch("src.nodes.monitor.github") as mock_monitor, \
-             patch("src.nodes.analyzer.anthropic") as mock_claude_analyzer, \
-             patch("src.nodes.escalation.telegram") as mock_telegram:
+        with patch("nodes.scanner.GitHubTool") as mock_github_tool, \
+             patch("nodes.invoker.ClaudeCodeTool") as mock_claude_tool, \
+             patch("nodes.escalation.TelegramTool") as mock_telegram_tool:
 
-            # Mock GitHub API calls
-            mock_github.get_repository_pulls.return_value = [create_test_pr_data(123)]
-            mock_monitor.get_check_runs.return_value = [
-                create_test_check_data("ci/security-scan", "failure")
-            ]
+            # Mock GitHub API tool calls
+            mock_github_instance = AsyncMock()
+            mock_github_tool.return_value = mock_github_instance
+            mock_github_instance._arun.return_value = {
+                "success": True,
+                "prs": [create_test_pr_data(123)]
+            }
 
-            # Mock Claude analyzer determining issue is unfixable
-            mock_claude_analyzer.messages.create = AsyncMock(return_value={
-                "type": "message",
-                "content": [{
-                    "type": "text",
-                    "text": "ANALYSIS: This security vulnerability requires manual human review and cannot be automatically fixed."
-                }]
-            })
+            # Mock Claude tool determining issue is unfixable
+            mock_claude_instance = AsyncMock()
+            mock_claude_tool.return_value = mock_claude_instance
+            mock_claude_instance._arun.return_value = {
+                "success": False,
+                "fixable": False,
+                "reason": "Security vulnerability requires manual human review"
+            }
 
             # Mock Telegram escalation
-            mock_telegram.send_message = AsyncMock(return_value={"ok": True, "message_id": 124})
+            mock_telegram_instance = AsyncMock()
+            mock_telegram_tool.return_value = mock_telegram_instance
+            mock_telegram_instance._arun.return_value = {
+                "success": True,
+                "message_id": 124
+            }
 
             # Create workflow graph
             graph = create_monitor_graph(
@@ -167,10 +184,13 @@ class TestEscalationWorkflow:
             assert escalation_triggered, "Should escalate unfixable issues directly"
 
             # Verify Telegram was called for escalation
-            mock_telegram.send_message.assert_called()
-            escalation_args = mock_telegram.send_message.call_args
-            message_text = escalation_args[1]["text"] if escalation_args else ""
-            assert "security" in message_text.lower(), "Escalation should mention security issue"
+            mock_telegram_instance._arun.assert_called()
+            escalation_args = mock_telegram_instance._arun.call_args
+            if escalation_args:
+                # Extract message from call args if available
+                call_kwargs = escalation_args[1] if len(escalation_args) > 1 else {}
+                message_text = str(call_kwargs)
+                assert "security" in message_text.lower(), "Escalation should mention security issue"
 
     async def test_escalation_with_human_acknowledgment(self, integration_test_setup: dict[str, Any]):
         """Test escalation workflow with simulated human acknowledgment."""
@@ -178,19 +198,33 @@ class TestEscalationWorkflow:
         redis_client = setup["redis_client"]
         config = setup["config"]
 
-        with patch("src.nodes.scanner.github") as mock_github, \
-             patch("src.nodes.monitor.github") as mock_monitor, \
-             patch("src.nodes.invoker.anthropic") as mock_claude, \
-             patch("src.nodes.escalation.telegram") as mock_telegram:
+        with patch("nodes.scanner.GitHubTool") as mock_github_tool, \
+             patch("nodes.invoker.ClaudeCodeTool") as mock_claude_tool, \
+             patch("nodes.escalation.TelegramTool") as mock_telegram_tool:
 
-            # Setup failing scenario
-            mock_github.get_repository_pulls.return_value = [create_test_pr_data(123)]
-            mock_monitor.get_check_runs.return_value = [
-                create_test_check_data("ci/integration", "failure")
-            ]
+            # Mock GitHub API tool calls
+            mock_github_instance = AsyncMock()
+            mock_github_tool.return_value = mock_github_instance
+            mock_github_instance._arun.return_value = {
+                "success": True,
+                "prs": [create_test_pr_data(123)]
+            }
 
-            mock_claude.messages.create = AsyncMock(return_value=create_claude_fix_response(False))
-            mock_telegram.send_message = AsyncMock(return_value={"ok": True, "message_id": 125})
+            # Mock Claude API tool calls
+            mock_claude_instance = AsyncMock()
+            mock_claude_tool.return_value = mock_claude_instance
+            mock_claude_instance._arun.return_value = {
+                "success": False,
+                "error": "Unable to fix the issue"
+            }
+
+            # Mock Telegram API tool calls
+            mock_telegram_instance = AsyncMock()
+            mock_telegram_tool.return_value = mock_telegram_instance
+            mock_telegram_instance._arun.return_value = {
+                "success": True,
+                "message_id": 125
+            }
 
             # Create workflow
             graph = create_monitor_graph(
@@ -245,28 +279,37 @@ class TestEscalationWorkflow:
         # Enable higher concurrency for this test
         config.global_limits.max_concurrent_fixes = 3
 
-        with patch("src.nodes.scanner.github") as mock_github, \
-             patch("src.nodes.monitor.github") as mock_monitor, \
-             patch("src.nodes.invoker.anthropic") as mock_claude, \
-             patch("src.nodes.escalation.telegram") as mock_telegram:
+        with patch("nodes.scanner.GitHubTool") as mock_github_tool, \
+             patch("nodes.invoker.ClaudeCodeTool") as mock_claude_tool, \
+             patch("nodes.escalation.TelegramTool") as mock_telegram_tool:
 
-            # Mock multiple PRs with failures
-            mock_github.get_repository_pulls.return_value = [
-                create_test_pr_data(123),
-                create_test_pr_data(124),
-                create_test_pr_data(125)
-            ]
+            # Mock GitHub API tool calls
+            mock_github_instance = AsyncMock()
+            mock_github_tool.return_value = mock_github_instance
+            mock_github_instance._arun.return_value = {
+                "success": True,
+                "prs": [
+                    create_test_pr_data(123),
+                    create_test_pr_data(124),
+                    create_test_pr_data(125)
+                ]
+            }
 
-            # Mock check failures for all PRs
-            mock_monitor.get_check_runs.side_effect = [
-                [create_test_check_data("ci/test", "failure")],  # PR 123
-                [create_test_check_data("ci/lint", "failure")],  # PR 124
-                [create_test_check_data("ci/security", "failure")]  # PR 125
-            ]
+            # Mock Claude API tool calls - all fixes fail
+            mock_claude_instance = AsyncMock()
+            mock_claude_tool.return_value = mock_claude_instance
+            mock_claude_instance._arun.return_value = {
+                "success": False,
+                "error": "Unable to fix the issue"
+            }
 
-            # All fixes fail
-            mock_claude.messages.create = AsyncMock(return_value=create_claude_fix_response(False))
-            mock_telegram.send_message = AsyncMock(return_value={"ok": True})
+            # Mock Telegram API tool calls
+            mock_telegram_instance = AsyncMock()
+            mock_telegram_tool.return_value = mock_telegram_instance
+            mock_telegram_instance._arun.return_value = {
+                "success": True,
+                "message_id": 126
+            }
 
             # Create workflow
             graph = create_monitor_graph(
@@ -312,7 +355,7 @@ class TestEscalationWorkflow:
             assert len(escalated_prs) >= 2, f"Expected at least 2 PR escalations, got {len(escalated_prs)}"
 
             # Verify escalation notifications were sent
-            assert mock_telegram.send_message.call_count >= 2, "Multiple escalation notifications should be sent"
+            assert mock_telegram_instance._arun.call_count >= 2, "Multiple escalation notifications should be sent"
 
     # Helper methods
 

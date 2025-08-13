@@ -25,7 +25,7 @@ class TestErrorHandlingWorkflow:
         # Setup GitHub API to fail initially, then succeed
         await self._setup_github_api_failure_then_recovery(setup["github_api_base_url"])
 
-        with patch("src.nodes.scanner.github") as mock_github:
+        with patch("nodes.scanner.GitHubTool") as mock_github_tool:
 
             # Mock GitHub to fail first few calls, then succeed
             call_count = 0
@@ -34,9 +34,14 @@ class TestErrorHandlingWorkflow:
                 call_count += 1
                 if call_count <= 2:
                     raise ConnectionError("GitHub API unavailable")
-                return [create_test_pr_data(123)]
+                return {
+                    "success": True,
+                    "prs": [create_test_pr_data(123)]
+                }
 
-            mock_github.get_repository_pulls.side_effect = github_side_effect
+            mock_github_instance = AsyncMock()
+            mock_github_tool.return_value = mock_github_instance
+            mock_github_instance._arun.side_effect = github_side_effect
 
             # Create workflow
             graph = create_monitor_graph(
@@ -94,11 +99,16 @@ class TestErrorHandlingWorkflow:
         config = setup["config"]
         redis_client = setup["redis_client"]
 
-        with patch("src.nodes.scanner.github") as mock_github, \
+        with patch("nodes.scanner.GitHubTool") as mock_github_tool, \
              patch.object(redis_client, "save_state") as mock_save_state:
 
-            # Mock GitHub API
-            mock_github.get_repository_pulls.return_value = [create_test_pr_data(123)]
+            # Mock GitHub API tool
+            mock_github_instance = AsyncMock()
+            mock_github_tool.return_value = mock_github_instance
+            mock_github_instance._arun.return_value = {
+                "success": True,
+                "prs": [create_test_pr_data(123)]
+            }
 
             # Mock Redis failures initially
             call_count = 0
@@ -149,18 +159,21 @@ class TestErrorHandlingWorkflow:
         setup = integration_test_setup
         config = setup["config"]
 
-        with patch("src.nodes.scanner.github") as mock_github, \
-             patch("src.nodes.monitor.github") as mock_monitor, \
-             patch("src.nodes.invoker.anthropic") as mock_claude:
+        with patch("nodes.scanner.GitHubTool") as mock_github_tool, \
+             patch("nodes.invoker.ClaudeCodeTool") as mock_claude_tool:
 
-            # Mock GitHub API
-            mock_github.get_repository_pulls.return_value = [create_test_pr_data(123)]
-            mock_monitor.get_check_runs.return_value = [
-                create_test_check_data("ci/test", "failure")
-            ]
+            # Mock GitHub API tool
+            mock_github_instance = AsyncMock()
+            mock_github_tool.return_value = mock_github_instance
+            mock_github_instance._arun.return_value = {
+                "success": True,
+                "prs": [create_test_pr_data(123)]
+            }
 
-            # Mock Claude API timeout
-            mock_claude.messages.create = AsyncMock(side_effect=TimeoutError("Claude API timeout"))
+            # Mock Claude API tool timeout
+            mock_claude_instance = AsyncMock()
+            mock_claude_tool.return_value = mock_claude_instance
+            mock_claude_instance._arun.side_effect = TimeoutError("Claude API timeout")
 
             # Create workflow
             graph = create_monitor_graph(
@@ -204,7 +217,7 @@ class TestErrorHandlingWorkflow:
         config = setup["config"]
 
         # Create two separate workflow instances
-        with patch("src.nodes.scanner.github") as mock_github:
+        with patch("nodes.scanner.GitHubTool") as mock_github_tool:
 
             # Mock different behaviors for different repositories
             def github_side_effect(repo_name, *args, **kwargs):
@@ -212,7 +225,9 @@ class TestErrorHandlingWorkflow:
                     raise ConnectionError("Simulated failure for failing repo")
                 return [create_test_pr_data(123)]
 
-            mock_github.get_repository_pulls.side_effect = github_side_effect
+            mock_github_instance = AsyncMock()
+            mock_github_tool.return_value = mock_github_instance
+            mock_github_instance._arun.side_effect = github_side_effect
 
             # Create workflow graphs
             graph = create_monitor_graph(
@@ -291,8 +306,14 @@ class TestErrorHandlingWorkflow:
         state_key = "workflow_state:test-org/test-repo"
         redis_client.save_state(state_key, corrupted_state)
 
-        with patch("src.nodes.scanner.github") as mock_github:
-            mock_github.get_repository_pulls.return_value = [create_test_pr_data(123)]
+        with patch("nodes.scanner.GitHubTool") as mock_github_tool:
+            # Mock GitHub API tool
+            mock_github_instance = AsyncMock()
+            mock_github_tool.return_value = mock_github_instance
+            mock_github_instance._arun.return_value = {
+                "success": True,
+                "prs": [create_test_pr_data(123)]
+            }
 
             # Create workflow
             graph = create_monitor_graph(
@@ -354,8 +375,7 @@ class TestErrorHandlingWorkflow:
         setup = integration_test_setup
         config = setup["config"]
 
-        with patch("src.nodes.scanner.github") as mock_github, \
-             patch("src.nodes.monitor.github") as mock_monitor:
+        with patch("nodes.scanner.GitHubTool") as mock_github_tool:
 
             # Simulate intermittent network failures
             call_count = 0
@@ -365,10 +385,14 @@ class TestErrorHandlingWorkflow:
                 # Fail every other call to simulate network issues
                 if call_count % 2 == 0:
                     raise ConnectionError("Network partition")
-                return [create_test_pr_data(123)]
+                return {
+                    "success": True,
+                    "prs": [create_test_pr_data(123)]
+                }
 
-            mock_github.get_repository_pulls.side_effect = network_failure_simulation
-            mock_monitor.get_check_runs.side_effect = network_failure_simulation
+            mock_github_instance = AsyncMock()
+            mock_github_tool.return_value = mock_github_instance
+            mock_github_instance._arun.side_effect = network_failure_simulation
 
             # Create workflow
             graph = create_monitor_graph(
