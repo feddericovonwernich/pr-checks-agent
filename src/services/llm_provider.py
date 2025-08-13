@@ -183,14 +183,17 @@ class AnthropicProvider(BaseLLMProvider):
                 else:
                     conversation_messages.append({"role": msg.role, "content": msg.content})
 
-            response = await client.messages.create(
-                model=self.model,
-                max_tokens=max_tokens or 4096,
-                temperature=temperature,
-                system=system_message,
-                messages=conversation_messages,
+            create_kwargs = {
+                "model": self.model,
+                "max_tokens": max_tokens or 4096,
+                "temperature": temperature,
+                "messages": conversation_messages,
                 **kwargs,
-            )
+            }
+            if system_message:
+                create_kwargs["system"] = system_message
+            
+            response = await client.messages.create(**create_kwargs)
 
             usage = {}
             if response.usage:
@@ -200,7 +203,16 @@ class AnthropicProvider(BaseLLMProvider):
                     "total_tokens": response.usage.input_tokens + response.usage.output_tokens,
                 }
 
-            return LLMResponse(content=response.content[0].text, provider=self.provider_name, model=self.model, usage=usage)
+            # Extract text from response content
+            content_text = ""
+            if response.content and len(response.content) > 0:
+                first_block = response.content[0]
+                if hasattr(first_block, 'text'):
+                    content_text = first_block.text  # type: ignore[attr-defined]
+                else:
+                    content_text = str(first_block)
+            
+            return LLMResponse(content=content_text, provider=self.provider_name, model=self.model, usage=usage)
 
         except Exception as e:
             logger.error(f"Anthropic API error: {e}")
