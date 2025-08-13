@@ -114,10 +114,10 @@ class OpenAIProvider(BaseLLMProvider):
 
             response = await client.chat.completions.create(
                 model=self.model,
-                messages=openai_messages,
+                messages=openai_messages,  # type: ignore[arg-type]
                 temperature=temperature,
                 max_tokens=max_tokens,
-                **kwargs,  # type: ignore[arg-type]
+                **kwargs,
             )
 
             usage = {}
