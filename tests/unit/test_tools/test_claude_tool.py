@@ -104,6 +104,12 @@ class TestClaudeCodeTool:
     @patch('subprocess.run')
     def test_analyze_failure_dry_run(self, mock_subprocess):
         """Test analyze failure in dry run mode."""
+        # Mock the version check subprocess call during initialization
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "claude 1.0.0"
+        mock_subprocess.return_value = mock_result
+        
         tool = ClaudeCodeTool(dry_run=True)
         
         result = tool._run(
@@ -120,13 +126,20 @@ class TestClaudeCodeTool:
         assert "attempt_id" in result
         assert "duration_seconds" in result
         
-        # Should not call subprocess in dry run
-        mock_subprocess.assert_not_called()
+        # Should only call subprocess once during initialization for version check
+        assert mock_subprocess.call_count == 1
+        mock_subprocess.assert_called_with(['claude', '--version'], capture_output=True, text=True, timeout=10)
     
     @patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'test_api_key'})
     @patch('subprocess.run')
     def test_fix_issue_dry_run(self, mock_subprocess):
         """Test fix issue in dry run mode."""
+        # Mock the version check subprocess call during initialization
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stdout = "claude 1.0.0"
+        mock_subprocess.return_value = mock_result
+        
         tool = ClaudeCodeTool(dry_run=True)
         
         result = tool._run(
@@ -143,8 +156,9 @@ class TestClaudeCodeTool:
         assert "git diff" in result["git_diff"]
         assert "attempt_id" in result
         
-        # Should not call subprocess in dry run
-        mock_subprocess.assert_not_called()
+        # Should only call subprocess once during initialization for version check
+        assert mock_subprocess.call_count == 1
+        mock_subprocess.assert_called_with(['claude', '--version'], capture_output=True, text=True, timeout=10)
     
     @patch.dict('os.environ', {'ANTHROPIC_API_KEY': 'test_api_key'})
     @patch('subprocess.run')

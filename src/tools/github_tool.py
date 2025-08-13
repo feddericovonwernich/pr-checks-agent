@@ -15,7 +15,7 @@ from langchain.tools import BaseTool
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from state.schemas import PRInfo, CheckInfo, CheckStatus
+from src.state.schemas import PRInfo, CheckInfo, CheckStatus
 
 
 class GitHubAPIInput(BaseModel):
@@ -33,6 +33,9 @@ class GitHubTool(BaseTool):
     name: str = "github_api"
     description: str = "Interact with GitHub API to get PR and check information"
     args_schema: type = GitHubAPIInput
+    
+    class Config:
+        extra = "allow"
     
     def __init__(self):
         super().__init__()

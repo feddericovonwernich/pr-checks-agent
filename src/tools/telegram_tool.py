@@ -34,6 +34,9 @@ class TelegramTool(BaseTool):
     description: str = "Send notifications and escalations via Telegram"
     args_schema: type = TelegramInput
     
+    class Config:
+        extra = "allow"
+    
     def __init__(self, dry_run: bool = False):
         super().__init__()
         

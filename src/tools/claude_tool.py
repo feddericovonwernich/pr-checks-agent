@@ -33,6 +33,9 @@ class ClaudeCodeTool(BaseTool):
     description: str = "Invoke Claude Code CLI to analyze and fix code issues"
     args_schema: type = ClaudeCodeInput
     
+    class Config:
+        extra = "allow"
+    
     def __init__(self, dry_run: bool = False):
         super().__init__()
         
