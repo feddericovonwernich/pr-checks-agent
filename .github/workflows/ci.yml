@@ -22,7 +22,7 @@ jobs:
         python-version: '3.13'
     
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
@@ -111,7 +111,7 @@ jobs:
       continue-on-error: true
     
     - name: Upload security reports as artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-reports
@@ -172,7 +172,7 @@ jobs:
         python-version: '3.13'
 
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
@@ -204,7 +204,7 @@ jobs:
         fail_ci_if_error: true
 
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results
@@ -241,7 +241,7 @@ jobs:
         pip-licenses
     
     - name: Upload dependency reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: dependency-reports
         path: |
@@ -283,7 +283,7 @@ jobs:
       continue-on-error: true
     
     - name: Upload metrics reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: metrics-reports
         path: |
