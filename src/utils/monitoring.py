@@ -3,7 +3,7 @@ Implements metrics collection, health checks, and web dashboard
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, TypedDict
+from typing import Any, TypedDict
 
 from aiohttp import web
 from loguru import logger
@@ -12,6 +12,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, G
 
 class RepositoryStats(TypedDict, total=False):
     """Type definition for repository statistics."""
+
     active_prs: int
     last_scan: datetime
     total_checks: int
@@ -24,9 +25,10 @@ class RepositoryStats(TypedDict, total=False):
 
 class MonitoringStats(TypedDict):
     """Type definition for monitoring statistics."""
+
     start_time: datetime
-    repositories: Dict[str, RepositoryStats]
-    recent_events: List[Dict[str, Any]]
+    repositories: dict[str, RepositoryStats]
+    recent_events: list[dict[str, Any]]
     health_status: str
 
 # Prometheus metrics
@@ -78,9 +80,9 @@ class MonitoringServer:
 
         # In-memory stats for dashboard
         self.stats: MonitoringStats = {
-            "start_time": datetime.now(), 
-            "repositories": {}, 
-            "recent_events": [], 
+            "start_time": datetime.now(),
+            "repositories": {},
+            "recent_events": [],
             "health_status": "healthy"
         }
 
