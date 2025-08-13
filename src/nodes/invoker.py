@@ -8,9 +8,9 @@ from typing import Any
 
 from loguru import logger
 
+from services.llm_provider import LLMService
 from state.schemas import FixAttempt, FixAttemptStatus, MonitorState
 from tools.claude_tool import ClaudeCodeTool
-from services.llm_provider import LLMService
 
 
 async def claude_invoker_node(state: MonitorState) -> dict[str, Any]:
@@ -245,7 +245,7 @@ async def should_escalate_with_llm(state: MonitorState) -> dict[str, Any]:
     config = state["config"]
     fix_results = state.get("fix_results", [])
     active_prs = state.get("active_prs", {})
-    
+
     # Initialize LLM service
     llm_config = {
         "provider": config.llm.provider,
@@ -254,37 +254,32 @@ async def should_escalate_with_llm(state: MonitorState) -> dict[str, Any]:
         "base_url": config.llm.base_url,
     }
     llm_service = LLMService(llm_config)
-    
+
     escalation_decisions = []
-    
+
     for pr_number, pr_state in active_prs.items():
         failed_checks = pr_state.get("failed_checks", [])
         fix_attempts = pr_state.get("fix_attempts", {})
-        
+
         for check_name in failed_checks:
             attempts = fix_attempts.get(check_name, [])
             max_attempts = config.fix_limits.get("max_attempts", 3)
-            
+
             if len(attempts) >= max_attempts:
                 # Get failure analysis info
                 analysis_key = f"analysis_{check_name}"
                 failure_info = pr_state.get(analysis_key, {})
-                
+
                 # Use LLM to decide if escalation is needed
                 escalation_result = await llm_service.should_escalate(
                     failure_info=failure_info,
                     fix_attempts=len(attempts),
                     max_attempts=max_attempts,
-                    project_context=config.claude_context
+                    project_context=config.claude_context,
                 )
-                
-                escalation_decisions.append({
-                    "pr_number": pr_number,
-                    "check_name": check_name,
-                    "escalation_decision": escalation_result
-                })
-    
-    return {
-        **state,
-        "escalation_decisions": escalation_decisions
-    }
+
+                escalation_decisions.append(
+                    {"pr_number": pr_number, "check_name": check_name, "escalation_decision": escalation_result}
+                )
+
+    return {**state, "escalation_decisions": escalation_decisions}

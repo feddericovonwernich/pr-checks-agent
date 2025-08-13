@@ -5,7 +5,7 @@ Handles loading and validation of configuration files
 import json
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 from loguru import logger
 from pydantic import BaseModel, Field, ValidationError
@@ -24,25 +24,25 @@ class GlobalLimits(BaseModel):
 
 class LLMConfig(BaseModel):
     """LLM provider configuration for decision-making."""
-    
+
     provider: str = Field(default="openai", description="LLM provider: openai, anthropic, or ollama")
     model: str = Field(default="gpt-4", description="Model name to use")
-    api_key: Optional[str] = Field(default=None, description="API key (if required)")
-    base_url: Optional[str] = Field(default=None, description="Custom base URL (for Ollama or custom endpoints)")
+    api_key: str | None = Field(default=None, description="API key (if required)")
+    base_url: str | None = Field(default=None, description="Custom base URL (for Ollama or custom endpoints)")
     temperature: float = Field(default=0.1, description="Temperature for LLM responses")
-    max_tokens: Optional[int] = Field(default=2048, description="Maximum tokens per response")
-    
-    @property 
-    def effective_api_key(self) -> Optional[str]:
+    max_tokens: int | None = Field(default=2048, description="Maximum tokens per response")
+
+    @property
+    def effective_api_key(self) -> str | None:
         """Get API key from config or environment."""
         if self.api_key:
             return self.api_key
-        
+
         if self.provider == "openai":
             return os.getenv("OPENAI_API_KEY")
-        elif self.provider == "anthropic":
+        if self.provider == "anthropic":
             return os.getenv("ANTHROPIC_API_KEY")
-        
+
         return None
 
 
@@ -196,12 +196,7 @@ def create_default_config() -> Config:
             rate_limits={"github_api_calls_per_hour": 4000, "claude_invocations_per_hour": 100},
             resource_limits={"max_workflow_memory_mb": 512, "max_log_retention_days": 30},
         ),
-        llm=LLMConfig(
-            provider="openai",
-            model="gpt-4",
-            temperature=0.1,
-            max_tokens=2048
-        ),
+        llm=LLMConfig(provider="openai", model="gpt-4", temperature=0.1, max_tokens=2048),
     )
 
 
