@@ -1,0 +1,95 @@
+@startuml PR Check Agent Workflow
+
+title PR Check Agent - Workflow State Transitions
+
+[*] --> ScanRepository : "Start monitoring"
+
+state "Repository Scanning" as ScanRepository {
+    ScanRepository : Polls GitHub API
+    ScanRepository : Discovers new PRs
+    ScanRepository : Updates active PR list
+}
+
+state "Check Monitoring" as MonitorChecks {
+    MonitorChecks : Monitors CI/CD status
+    MonitorChecks : Detects check failures
+    MonitorChecks : Tracks status changes
+}
+
+state "Failure Analysis" as AnalyzeFailures {
+    AnalyzeFailures : Extracts failure logs
+    AnalyzeFailures : Determines fixability
+    AnalyzeFailures : Prepares context
+}
+
+state "Priority Processing" as PrioritizeFailures {
+    PrioritizeFailures : Sorts by urgency
+    PrioritizeFailures : Security > Tests > Linting
+    PrioritizeFailures : Main > Develop > Feature
+}
+
+state "Fix Attempts" as AttemptFixes {
+    AttemptFixes : Invokes Claude Code
+    AttemptFixes : Applies automated fixes
+    AttemptFixes : Validates changes
+}
+
+state "Human Escalation" as EscalateIssues {
+    EscalateIssues : Sends Telegram notification
+    EscalateIssues : Includes failure context
+    EscalateIssues : Waits for human intervention
+}
+
+state "Polling Wait" as WaitForPoll {
+    WaitForPoll : Sleeps for interval
+    WaitForPoll : Prepares next cycle
+}
+
+state "Error Handling" as HandleErrors {
+    HandleErrors : Exponential backoff
+    HandleErrors : Circuit breaker logic
+    HandleErrors : Error logging
+}
+
+state "State Cleanup" as CleanupState {
+    CleanupState : Removes stale PRs
+    CleanupState : Updates metrics
+    CleanupState : Garbage collection
+}
+
+' Main workflow transitions
+ScanRepository --> MonitorChecks : "Active PRs found"
+ScanRepository --> WaitForPoll : "No active PRs"
+ScanRepository --> HandleErrors : "API failure"
+
+MonitorChecks --> PrioritizeFailures : "Failures detected"
+MonitorChecks --> WaitForPoll : "All checks passing"
+
+PrioritizeFailures --> AnalyzeFailures : "Failures prioritized"
+
+AnalyzeFailures --> AttemptFixes : "Fixable issues"
+AnalyzeFailures --> EscalateIssues : "Unfixable issues"
+
+AttemptFixes --> MonitorChecks : "Fix applied, verify"
+AttemptFixes --> AttemptFixes : "Retry (< max attempts)"
+AttemptFixes --> EscalateIssues : "Max attempts reached"
+
+EscalateIssues --> WaitForPoll : "Human notified"
+
+WaitForPoll --> CleanupState : "Interval elapsed"
+
+CleanupState --> ScanRepository : "Ready for next cycle"
+
+HandleErrors --> WaitForPoll : "Error handled"
+
+' Self-loops and conditions
+note right of AttemptFixes : "Retry up to 3 times\nwith exponential backoff"
+note right of EscalateIssues : "Cooldown: 24 hours\nbefore re-escalating"
+note right of WaitForPoll : "Default: 300 seconds\n(5 minutes)"
+
+' State annotations
+note top of ScanRepository : "Entry Point"
+note right of MonitorChecks : "Continuous monitoring\nof active PRs"
+note right of HandleErrors : "Circuit breaker prevents\ncascading failures"
+
+@enduml

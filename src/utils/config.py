@@ -150,7 +150,7 @@ def create_default_config() -> Config:
                 repo="example-repo",
                 branch_filter=["main", "develop"],
                 check_types=["ci", "tests", "linting"],
-                claude_context={"project_type": "python", "test_framework": "pytest", "linting": "flake8"},
+                claude_context={"project_type": "python", "test_framework": "pytest", "linting": "ruff"},
                 fix_limits={"max_attempts": 3, "cooldown_hours": 6, "escalation_enabled": True},
                 priorities={
                     "check_types": {"security": 1, "tests": 2, "linting": 3, "ci": 4},
