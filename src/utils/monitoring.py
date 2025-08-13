@@ -31,6 +31,7 @@ class MonitoringStats(TypedDict):
     recent_events: list[dict[str, Any]]
     health_status: str
 
+
 # Prometheus metrics
 REGISTRY = CollectorRegistry()
 
@@ -83,7 +84,7 @@ class MonitoringServer:
             "start_time": datetime.now(),
             "repositories": {},
             "recent_events": [],
-            "health_status": "healthy"
+            "health_status": "healthy",
         }
 
     def setup_routes(self) -> None:
