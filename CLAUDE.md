@@ -304,12 +304,27 @@ python -m pytest tests/test_graphs/ -v
 python -m pytest tests/test_integration/ --workflow-sim
 ```
 
-### Linting
+### Code Quality Commands
+**IMPORTANT**: Always run these commands before committing code changes:
+
 ```bash
-ruff check src/ tests/
+# Format code with Ruff (fixes style issues automatically)
 ruff format src/ tests/
+
+# Check for linting issues (and fix what can be auto-fixed)
+ruff check src/ tests/ --fix
+
+# Run MyPy type checking
 mypy src/
+
+# Run all tests
+python -m pytest tests/ -v
+
+# Complete quality check sequence (run all):
+ruff format src/ tests/ && ruff check src/ tests/ --fix && mypy src/ && python -m pytest tests/ -v
 ```
+
+**Note for Claude**: These commands must be run after any code changes to ensure CI pipeline passes. The CI will fail if code is not formatted correctly or has linting/type errors.
 
 ## Architecture Notes
 
