@@ -202,16 +202,10 @@ pr-check-agent/
 │   └── logging.conf         # Logging configuration
 ├── tests/
 │   ├── unit/
-│   │   ├── test_nodes/
-│   │   ├── test_tools/
-│   │   └── test_utils/
-│   ├── integration/
-│   │   ├── test_workflows/
-│   │   └── test_end_to_end/
-│   └── fixtures/
-│       ├── github_responses.json
-│       ├── claude_outputs.json
-│       └── sample_repos.json
+│   │   └── test_tools/       # Unit tests for tool modules
+│   ├── conftest.py          # Pytest configuration and fixtures
+│   ├── test_config.py       # Configuration tests
+│   └── test_main.py         # Main application tests
 ├── requirements.txt         # Python dependencies
 ├── docker-compose.yml       # Container orchestration
 ├── Dockerfile              # Container definition
@@ -224,11 +218,7 @@ pr-check-agent/
 │   ├── setup.sh           # Environment setup script
 │   ├── backup.sh          # Redis backup script
 │   └── health-check.sh    # Health monitoring script
-└── docs/
-    ├── architecture.md    # Detailed architecture docs
-    ├── deployment.md      # Deployment guide
-    ├── troubleshooting.md # Common issues and solutions
-    └── api.md            # Dashboard API documentation
+└── logs/                   # Runtime log files
 ```
 
 ## Installation and Setup

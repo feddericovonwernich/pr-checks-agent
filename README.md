@@ -8,7 +8,7 @@ A **LangGraph-powered** automated agent that monitors GitHub pull requests, dete
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.11+
+- Python 3.13+
 - Redis (for state persistence)
 - GitHub personal access token
 - Anthropic API key (for Claude Code)
@@ -194,10 +194,8 @@ python src/main.py --trace --dashboard
 
 ## 📚 Documentation
 
-- [`CLAUDE.md`](./CLAUDE.md) - Detailed technical documentation
-- [`docs/architecture.md`](./docs/architecture.md) - Architecture deep dive
-- [`docs/deployment.md`](./docs/deployment.md) - Production deployment guide
-- [`docs/troubleshooting.md`](./docs/troubleshooting.md) - Common issues and solutions
+- [`CLAUDE.md`](./CLAUDE.md) - Detailed technical documentation and architecture
+- [GitHub Issues](https://github.com/feddericovonwernich/pr-checks-agent/issues) - Issue tracking and support
 
 ## 🤝 Contributing
 
