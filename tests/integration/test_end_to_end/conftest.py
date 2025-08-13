@@ -179,7 +179,7 @@ def mock_environment_vars():
 
 
 @pytest_asyncio.fixture
-async def integration_test_setup(
+async def integration_test_setup(  # noqa: PLR0913
     redis_client: StatePersistence,
     github_api_mock: str,
     claude_api_mock: str,

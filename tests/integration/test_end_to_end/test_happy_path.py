@@ -1,7 +1,12 @@
 """End-to-end tests for the happy path workflow scenarios."""
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, patch
+
+if TYPE_CHECKING:
+    from langgraph.graph.state import StateGraph
+
+    from src.state.persistence import StatePersistence
 
 import httpx
 import pytest
@@ -193,7 +198,7 @@ class TestHappyPathWorkflow:
         # Claude API mocking will be handled by the anthropic client mock in the test
 
     async def _run_workflow_to_completion(
-        self, graph: Any, initial_state: MonitorState, workflow_events: list
+        self, graph: "StateGraph[Any, None, Any, Any]", initial_state: MonitorState, workflow_events: list
     ) -> dict[str, Any]:
         """Run workflow until completion or significant milestone."""
         fix_attempted = False
@@ -229,7 +234,7 @@ class TestHappyPathWorkflow:
             "total_events": len(workflow_events),
         }
 
-    async def _verify_state_persistence(self, redis_client: Any, repository: str):
+    async def _verify_state_persistence(self, redis_client: "StatePersistence", repository: str):
         """Verify that workflow state was properly persisted to Redis."""
         # Check that repository state exists
         state_key = f"workflow_state:{repository}"

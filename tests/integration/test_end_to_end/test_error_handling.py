@@ -11,6 +11,11 @@ from src.graphs.monitor_graph import create_initial_state, create_monitor_graph
 
 from .conftest import create_test_pr_data
 
+# Type aliases for cleaner annotations
+MockArgs = tuple[Any, ...]
+MockKwargs = dict[str, Any]
+MockReturn = dict[str, Any]
+
 
 @pytest.mark.asyncio
 class TestErrorHandlingWorkflow:
@@ -25,7 +30,7 @@ class TestErrorHandlingWorkflow:
             # Mock GitHub to fail first few calls, then succeed
             call_count = 0
 
-            def github_side_effect(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            def github_side_effect(*args: MockArgs, **kwargs: MockKwargs) -> MockReturn:
                 nonlocal call_count
                 call_count += 1
                 if call_count <= 2:
@@ -91,7 +96,7 @@ class TestErrorHandlingWorkflow:
             # Mock Redis failures initially
             call_count = 0
 
-            def redis_side_effect(*args: Any, **kwargs: Any) -> bool:
+            def redis_side_effect(*args: MockArgs, **kwargs: MockKwargs) -> bool:
                 nonlocal call_count
                 call_count += 1
                 if call_count <= 2:
@@ -193,7 +198,7 @@ class TestErrorHandlingWorkflow:
         # Let's simplify to test basic isolation through mocking
         with patch("nodes.scanner.GitHubTool") as mock_github_tool:
             # Mock different behaviors for different repositories
-            def github_side_effect(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            def github_side_effect(*args: MockArgs, **kwargs: MockKwargs) -> MockReturn:
                 repository = kwargs.get("repository", "")
                 if "failing-repo" in str(repository):
                     msg = "Simulated failure for failing repo"
@@ -300,7 +305,7 @@ class TestErrorHandlingWorkflow:
             # Simulate limited intermittent network failures (to avoid infinite loops)
             call_count = 0
 
-            def network_failure_simulation(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            def network_failure_simulation(*args: MockArgs, **kwargs: MockKwargs) -> MockReturn:
                 nonlocal call_count
                 call_count += 1
                 # Fail the first 2 calls, then succeed to prevent recursion limit
@@ -344,7 +349,7 @@ class TestErrorHandlingWorkflow:
     # Helper methods
 
     async def _setup_github_api_failure_then_recovery(self, base_url: str):
-        """Setup GitHub API to fail initially then recover."""
+        """Set up GitHub API to fail initially then recover."""
         async with httpx.AsyncClient() as client:
             # This will be handled by the mock side effects in the tests
             pass
