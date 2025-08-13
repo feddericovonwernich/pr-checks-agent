@@ -321,7 +321,9 @@ class TestFailureAnalyzerNode:
     @patch("src.nodes.analyzer.GitHubTool")
     @patch("src.nodes.analyzer.ClaudeCodeTool")
     @pytest.mark.asyncio
-    async def test_failure_analyzer_node_dry_run_mode(self, mock_claude_tool, mock_github_tool, base_state, sample_pr_state, sample_prioritized_failure):
+    async def test_failure_analyzer_node_dry_run_mode(
+        self, mock_claude_tool, mock_github_tool, base_state, sample_pr_state, sample_prioritized_failure
+    ):
         """Test analyzer in dry run mode."""
         base_state["dry_run"] = True
         base_state["active_prs"] = {123: sample_pr_state}
