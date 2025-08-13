@@ -1,0 +1,112 @@
+@startuml PR Check Agent Architecture
+
+title PR Check Agent - LangGraph Architecture
+
+' External Services
+cloud "GitHub API" as github <<External>>
+cloud "Claude Code CLI" as claude <<External>>
+cloud "Telegram Bot API" as telegram <<External>>
+database "Redis" as redis <<External>>
+
+' Main Application
+package "Main Application" {
+    component "main.py" as entry
+    component "Configuration" as config
+    component "Logging & Monitoring" as logging
+}
+
+' LangGraph Workflows
+package "LangGraph Workflows" {
+    
+    ' Main Monitor Graph
+    package "Monitor Graph" {
+        component "scan_repository" as scan
+        component "monitor_checks" as monitor
+        component "prioritize_failures" as prioritize
+        component "analyze_failures" as analyze
+        component "attempt_fixes" as fixes
+        component "escalate_issues" as escalate
+        component "wait_for_poll" as wait
+        component "handle_errors" as errors
+        component "cleanup_state" as cleanup
+        
+        ' Workflow Edges
+        scan --> monitor : "new PRs found"
+        monitor --> prioritize : "failures detected"
+        prioritize --> analyze
+        analyze --> fixes : "fixable"
+        analyze --> escalate : "unfixable"
+        fixes --> monitor : "verify fixes"
+        fixes --> escalate : "max attempts"
+        fixes --> fixes : "retry"
+        escalate --> wait
+        monitor --> wait : "no failures"
+        wait --> cleanup
+        cleanup --> scan
+        scan --> errors : "API error"
+        errors --> wait
+    }
+}
+
+' LangGraph Tools
+package "LangGraph Tools" {
+    component "GitHub Tool" as gh_tool
+    component "Claude Tool" as claude_tool
+    component "Telegram Tool" as telegram_tool
+}
+
+' State Management
+package "State Management" {
+    component "State Schemas" as schemas
+    component "Persistence Layer" as persistence
+    component "MonitorState\nPRState\nCheckStatus" as state_types
+}
+
+' Monitoring & Observability
+package "Observability" {
+    component "Prometheus Metrics" as metrics
+    component "Health Checks" as health
+    component "Web Dashboard" as dashboard
+    component "Structured Logging" as logs
+}
+
+' Connections - Main Flow
+entry --> config
+entry --> scan
+entry --> logging
+
+' Node to Tool Connections
+scan --> gh_tool : "get PRs & checks"
+monitor --> gh_tool : "check status"
+analyze --> claude_tool : "analyze failures"
+fixes --> claude_tool : "attempt fix"
+escalate --> telegram_tool : "notify humans"
+
+' Tool to External Service Connections
+gh_tool --> github : "REST API calls"
+claude_tool --> claude : "CLI invocation"
+telegram_tool --> telegram : "send messages"
+
+' State Management Connections
+scan --> persistence : "save/load state"
+persistence --> redis : "persistent storage"
+persistence --> schemas
+state_types --> schemas
+
+' Monitoring Connections
+scan --> metrics : "record metrics"
+scan --> logs : "structured logging"
+metrics --> dashboard
+health --> dashboard
+logs --> dashboard
+
+' External User Interactions
+actor "Developer" as dev
+actor "Repository" as repo
+
+dev --> github : "creates PR"
+repo --> github : "CI checks run"
+github --> gh_tool : "webhook/polling"
+telegram --> dev : "escalation notifications"
+
+@enduml

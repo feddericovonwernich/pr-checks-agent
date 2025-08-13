@@ -62,6 +62,29 @@ This agent uses **LangGraph** to implement sophisticated workflows for:
 - **Human Escalation**: Telegram notifications when automated fixes fail
 - **State Management**: Persistent workflow state across restarts
 
+### System Architecture
+
+![Architecture Diagram](./architecture.png)
+
+The system is built around a **LangGraph workflow** that coordinates between multiple components:
+- **External Services**: GitHub API, Claude Code CLI, Telegram Bot API, Redis
+- **LangGraph Tools**: Modular tools for API interactions
+- **State Management**: Persistent state with Redis backend
+- **Observability**: Built-in metrics, health checks, and dashboard
+
+### Workflow State Machine
+
+![Workflow Diagram](./workflow.png)
+
+The workflow implements a state machine with these key transitions:
+1. **Repository Scanning** → Discovers PRs and check status changes
+2. **Check Monitoring** → Detects failures and triggers analysis
+3. **Priority Processing** → Sorts failures by urgency (security > tests > linting)
+4. **Failure Analysis** → Determines if issues are automatically fixable
+5. **Fix Attempts** → Invokes Claude Code with context (up to 3 attempts)
+6. **Human Escalation** → Telegram notifications for unfixable issues
+7. **Polling Wait** → Sleeps between monitoring cycles (default: 5 minutes)
+
 ### Core Components
 
 - **LangGraph Workflows**: Separate graphs for monitoring, PR processing, fix attempts, and escalation
