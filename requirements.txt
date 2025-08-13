@@ -44,3 +44,8 @@ ruff>=0.4.0
 
 # Logging
 loguru>=0.7.0
+
+# LLM Providers (optional - install based on your choice)
+openai>=1.0.0  # For OpenAI GPT models
+anthropic>=0.25.0  # For Anthropic Claude models
+httpx>=0.25.0  # For Ollama and custom endpoints

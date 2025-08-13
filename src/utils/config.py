@@ -5,7 +5,7 @@ Handles loading and validation of configuration files
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, Optional
 
 from loguru import logger
 from pydantic import BaseModel, Field, ValidationError
@@ -22,11 +22,36 @@ class GlobalLimits(BaseModel):
     resource_limits: dict[str, int] = Field(default_factory=dict)
 
 
+class LLMConfig(BaseModel):
+    """LLM provider configuration for decision-making."""
+    
+    provider: str = Field(default="openai", description="LLM provider: openai, anthropic, or ollama")
+    model: str = Field(default="gpt-4", description="Model name to use")
+    api_key: Optional[str] = Field(default=None, description="API key (if required)")
+    base_url: Optional[str] = Field(default=None, description="Custom base URL (for Ollama or custom endpoints)")
+    temperature: float = Field(default=0.1, description="Temperature for LLM responses")
+    max_tokens: Optional[int] = Field(default=2048, description="Maximum tokens per response")
+    
+    @property 
+    def effective_api_key(self) -> Optional[str]:
+        """Get API key from config or environment."""
+        if self.api_key:
+            return self.api_key
+        
+        if self.provider == "openai":
+            return os.getenv("OPENAI_API_KEY")
+        elif self.provider == "anthropic":
+            return os.getenv("ANTHROPIC_API_KEY")
+        
+        return None
+
+
 class Config(BaseModel):
     """Main configuration model."""
 
     repositories: list[RepositoryConfig] = Field(default_factory=list)
     global_limits: GlobalLimits = Field(default_factory=GlobalLimits)
+    llm: LLMConfig = Field(default_factory=LLMConfig)
 
     @classmethod
     def load(cls, config_path: str) -> "Config":
@@ -127,6 +152,7 @@ def load_environment_config() -> dict[str, Any]:
     return {
         "github_token": os.getenv("GITHUB_TOKEN"),
         "anthropic_api_key": os.getenv("ANTHROPIC_API_KEY"),
+        "openai_api_key": os.getenv("OPENAI_API_KEY"),
         "telegram_bot_token": os.getenv("TELEGRAM_BOT_TOKEN"),
         "telegram_chat_id": os.getenv("TELEGRAM_CHAT_ID"),
         "redis_url": os.getenv("REDIS_URL", "redis://localhost:6379/0"),
@@ -138,6 +164,11 @@ def load_environment_config() -> dict[str, Any]:
         "max_fix_attempts": int(os.getenv("MAX_FIX_ATTEMPTS", "3")),
         "escalation_cooldown": int(os.getenv("ESCALATION_COOLDOWN", "24")),
         "workflow_timeout": int(os.getenv("WORKFLOW_TIMEOUT", "60")),
+        # LLM Configuration from environment
+        "llm_provider": os.getenv("LLM_PROVIDER", "openai"),
+        "llm_model": os.getenv("LLM_MODEL"),
+        "llm_base_url": os.getenv("LLM_BASE_URL"),
+        "llm_temperature": float(os.getenv("LLM_TEMPERATURE", "0.1")),
     }
 
 
@@ -164,6 +195,12 @@ def create_default_config() -> Config:
             max_concurrent_fixes=5,
             rate_limits={"github_api_calls_per_hour": 4000, "claude_invocations_per_hour": 100},
             resource_limits={"max_workflow_memory_mb": 512, "max_log_retention_days": 30},
+        ),
+        llm=LLMConfig(
+            provider="openai",
+            model="gpt-4",
+            temperature=0.1,
+            max_tokens=2048
         ),
     )
 
