@@ -79,7 +79,8 @@ class StatePersistence:
             key = f"monitor_state:{repository}"
             data = self.redis_client.get(key)
             if data:
-                state = self._deserialize_state(data)
+                # Cast to bytes since redis-py returns bytes for binary data
+                state = self._deserialize_state(bytes(data))  # type: ignore[arg-type]
                 logger.debug(f"Loaded monitor state for {repository}")
                 return state  # type: ignore[return-value]
             return None
@@ -105,7 +106,7 @@ class StatePersistence:
             key = f"pr_state:{repository}:{pr_number}"
             data = self.redis_client.get(key)
             if data:
-                state = self._deserialize_state(data)
+                state = self._deserialize_state(bytes(data))  # type: ignore[arg-type]
                 logger.debug(f"Loaded PR state for {repository}#{pr_number}")
                 return state  # type: ignore[return-value]
             return None
@@ -134,10 +135,11 @@ class StatePersistence:
 
             for key in keys:
                 # Extract PR number from key
-                pr_number = int(key.decode().split(":")[-1])
+                key_str = key.decode() if hasattr(key, "decode") else str(key)  # type: ignore[misc]
+                pr_number = int(key_str.split(":")[-1])
                 data = self.redis_client.get(key)
                 if data:
-                    state = self._deserialize_state(data)
+                    state = self._deserialize_state(bytes(data))  # type: ignore[arg-type]
                     active_prs[pr_number] = state  # type: ignore[assignment]
 
             logger.debug(f"Loaded {len(active_prs)} active PRs for {repository}")
@@ -150,7 +152,7 @@ class StatePersistence:
         """Increment a counter and return new value."""
         try:
             result = self.redis_client.incr(key, amount)
-            return int(result)  # Ensure we return an int
+            return int(result) if result is not None else 0  # type: ignore[arg-type]
         except Exception as e:
             logger.error(f"Failed to increment counter {key}: {e}")
             return 0
@@ -171,7 +173,7 @@ class StatePersistence:
         """Get counter value."""
         try:
             value = self.redis_client.get(key)
-            return int(value) if value is not None else 0
+            return int(value) if value is not None else 0  # type: ignore[arg-type]
         except Exception as e:
             logger.error(f"Failed to get counter {key}: {e}")
             return 0
