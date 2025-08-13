@@ -10,22 +10,27 @@ Supports multiple LLM providers:
 import json
 import os
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import anthropic
+    import httpx
+    import openai
 
 try:
     import anthropic
 except ImportError:
-    anthropic = None
+    anthropic = None  # type: ignore[assignment]
 
 try:
     import httpx
 except ImportError:
-    httpx = None
+    httpx = None  # type: ignore[assignment]
 
 try:
     import openai
 except ImportError:
-    openai = None
+    openai = None  # type: ignore[assignment]
 
 from loguru import logger
 from pydantic import BaseModel, Field
@@ -81,8 +86,8 @@ class OpenAIProvider(BaseLLMProvider):
         if self._client is None:
             if openai is None:
                 raise ImportError("openai package required for OpenAI provider. Install with: pip install openai")
-            self._client = openai.AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
-        return self._client
+            self._client = openai.AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)  # type: ignore[assignment]
+        return self._client  # type: ignore[return-value]
 
     def is_available(self) -> bool:
         """Check if OpenAI is properly configured."""
@@ -105,10 +110,10 @@ class OpenAIProvider(BaseLLMProvider):
             client = self._get_client()
 
             # Convert messages to OpenAI format
-            openai_messages = [{"role": msg.role, "content": msg.content} for msg in messages]
+            openai_messages = [{"role": msg.role, "content": msg.content} for msg in messages]  # type: ignore[misc]
 
             response = await client.chat.completions.create(
-                model=self.model, messages=openai_messages, temperature=temperature, max_tokens=max_tokens, **kwargs
+                model=self.model, messages=openai_messages, temperature=temperature, max_tokens=max_tokens, **kwargs  # type: ignore[arg-type]
             )
 
             usage = {}
@@ -120,7 +125,7 @@ class OpenAIProvider(BaseLLMProvider):
                 }
 
             return LLMResponse(
-                content=response.choices[0].message.content, provider=self.provider_name, model=self.model, usage=usage
+                content=response.choices[0].message.content or "", provider=self.provider_name, model=self.model, usage=usage
             )
 
         except Exception as e:
@@ -141,8 +146,8 @@ class AnthropicProvider(BaseLLMProvider):
         if self._client is None:
             if anthropic is None:
                 raise ImportError("anthropic package required for Anthropic provider. Install with: pip install anthropic")
-            self._client = anthropic.AsyncAnthropic(api_key=self.api_key)
-        return self._client
+            self._client = anthropic.AsyncAnthropic(api_key=self.api_key)  # type: ignore[assignment]
+        return self._client  # type: ignore[return-value]
 
     def is_available(self) -> bool:
         """Check if Anthropic is properly configured."""
@@ -211,8 +216,8 @@ class OllamaProvider(BaseLLMProvider):
         if self._client is None:
             if httpx is None:
                 raise ImportError("httpx package required for Ollama provider. Install with: pip install httpx")
-            self._client = httpx.AsyncClient(base_url=self.base_url, timeout=60.0)
-        return self._client
+            self._client = httpx.AsyncClient(base_url=self.base_url, timeout=60.0)  # type: ignore[assignment]
+        return self._client  # type: ignore[return-value]
 
     def is_available(self) -> bool:
         """Check if Ollama is available."""
