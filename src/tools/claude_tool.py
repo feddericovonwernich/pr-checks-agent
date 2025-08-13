@@ -4,7 +4,7 @@ Handles Claude Code invocations as a LangGraph tool
 
 import asyncio
 import os
-import subprocess
+import subprocess  # nosec B404 - subprocess is used to invoke trusted Claude CLI only
 import tempfile
 import uuid
 from datetime import datetime
@@ -52,7 +52,7 @@ class ClaudeCodeTool(BaseTool):
     def _check_claude_cli(self) -> None:
         """Check if claude-code CLI is available."""
         try:
-            result = subprocess.run(["claude", "--version"], check=False, capture_output=True, text=True, timeout=10)
+            result = subprocess.run(["claude", "--version"], check=False, capture_output=True, text=True, timeout=10)  # nosec B603 B607 - trusted Claude CLI invocation
             if result.returncode == 0:
                 logger.info(f"Claude CLI available: {result.stdout.strip()}")
             else:

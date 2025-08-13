@@ -305,7 +305,7 @@ class MonitoringServer:
         runner = web.AppRunner(self.app)
         await runner.setup()
 
-        site = web.TCPSite(runner, "0.0.0.0", self.port)
+        site = web.TCPSite(runner, "0.0.0.0", self.port)  # nosec B104 - monitoring server needs to bind to all interfaces
         await site.start()
 
         logger.info(f"Monitoring server started on port {self.port}")

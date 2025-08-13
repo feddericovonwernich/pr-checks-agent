@@ -2,7 +2,7 @@
 Handles saving and loading workflow state to/from Redis
 """
 
-import pickle
+import pickle  # nosec B403 - pickle is used for trusted Redis data serialization only
 from datetime import datetime
 from typing import Any
 from urllib.parse import urlparse
@@ -47,7 +47,7 @@ class StatePersistence:
 
     def _deserialize_state(self, data: bytes) -> Any:
         """Deserialize state from storage."""
-        return pickle.loads(data)
+        return pickle.loads(data)  # nosec B301 - data comes from trusted Redis storage only
 
     def _make_serializable(self, obj: Any) -> Any:
         """Convert object to JSON-serializable format."""
