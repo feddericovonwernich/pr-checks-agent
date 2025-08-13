@@ -324,7 +324,18 @@ python -m pytest tests/ -v
 ruff format src/ tests/ && ruff check src/ tests/ --fix && mypy src/ && python -m pytest tests/ -v
 ```
 
-**Note for Claude**: These commands must be run after any code changes to ensure CI pipeline passes. The CI will fail if code is not formatted correctly or has linting/type errors.
+**Note for Claude**: These commands must be run before committing code to ensure CI pipeline passes. The CI will fail if code is not formatted correctly or has linting/type errors.
+
+### Pull Request Creation
+After pushing feature branches, always create pull requests:
+
+```bash
+# Create PR after pushing feature branch
+gh pr create --title "Feature Title" --body "Description of changes"
+```
+
+**Recent PRs:**
+- [PR #11: Add comprehensive tests for utils package](https://github.com/feddericovonwernich/pr-checks-agent/pull/11) - Comprehensive test coverage for config, logging, and monitoring utilities
 
 ## Architecture Notes
 
