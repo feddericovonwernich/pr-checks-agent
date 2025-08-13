@@ -585,4 +585,3 @@ class TestMonitoringIntegration:
         assert "test/repo1" in html
         assert "test/repo2" in html
         assert "status-unhealthy" in html
-

@@ -610,4 +610,3 @@ class TestLoggingIntegration:
         assert mock_logger.bind.call_count == 4
         assert mock_bound_logger.info.call_count == 3  # workflow_event, api_call, escalation
         assert mock_bound_logger.warning.call_count == 1  # fix_attempt failure
-

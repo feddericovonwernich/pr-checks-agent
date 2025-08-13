@@ -572,4 +572,3 @@ class TestConfigIntegration:
         repo_config = config.repositories[0]
         effective_limits = config.get_effective_limits(repo_config)
         assert "max_daily_fixes" in effective_limits
-
