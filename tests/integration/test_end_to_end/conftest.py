@@ -3,6 +3,7 @@
 import asyncio
 import os
 from collections.abc import AsyncGenerator, Generator
+from typing import Any
 from unittest.mock import patch
 
 import httpx
@@ -12,7 +13,6 @@ from testcontainers.core.container import DockerContainer
 from testcontainers.redis import RedisContainer
 
 from src.state.persistence import StatePersistence
-
 from src.utils.config import Config, create_default_config
 
 
@@ -68,7 +68,7 @@ async def redis_client(redis_container: RedisContainer) -> AsyncGenerator[StateP
     host = redis_container.get_container_host_ip()
     port = redis_container.get_exposed_port(6379)
     redis_url = f"redis://{host}:{port}/0"
-    
+
     persistence = StatePersistence(redis_url=redis_url)
     yield persistence
     # Cleanup: flush the database
@@ -78,55 +78,51 @@ async def redis_client(redis_container: RedisContainer) -> AsyncGenerator[StateP
 
 @pytest_asyncio.fixture
 async def github_api_mock(wiremock_container: DockerContainer) -> AsyncGenerator[str]:
-    """Setup GitHub API mocking with WireMock."""
+    """Set up GitHub API mocking with WireMock."""
     base_url = f"http://{wiremock_container.get_container_host_ip()}:{wiremock_container.get_exposed_port(8080)}"
 
     # Setup common GitHub API responses
     async with httpx.AsyncClient() as client:
         # Mock the API root endpoint
-        await client.post(f"{base_url}/__admin/mappings", json={
-            "request": {"method": "GET", "url": "/"},
-            "response": {"status": 200, "body": "GitHub API Mock"}
-        })
+        await client.post(
+            f"{base_url}/__admin/mappings",
+            json={"request": {"method": "GET", "url": "/"}, "response": {"status": 200, "body": "GitHub API Mock"}},
+        )
 
         # Mock repository API
-        await client.post(f"{base_url}/__admin/mappings", json={
-            "request": {
-                "method": "GET",
-                "urlPattern": "/repos/([^/]+)/([^/]+)"
+        await client.post(
+            f"{base_url}/__admin/mappings",
+            json={
+                "request": {"method": "GET", "urlPattern": "/repos/([^/]+)/([^/]+)"},
+                "response": {
+                    "status": 200,
+                    "headers": {"Content-Type": "application/json"},
+                    "jsonBody": {
+                        "id": 12345,
+                        "name": "test-repo",
+                        "full_name": "test-org/test-repo",
+                        "owner": {"login": "test-org"},
+                        "default_branch": "main",
+                    },
+                },
             },
-            "response": {
-                "status": 200,
-                "headers": {"Content-Type": "application/json"},
-                "jsonBody": {
-                    "id": 12345,
-                    "name": "test-repo",
-                    "full_name": "test-org/test-repo",
-                    "owner": {"login": "test-org"},
-                    "default_branch": "main"
-                }
-            }
-        })
+        )
 
         # Mock pulls API
-        await client.post(f"{base_url}/__admin/mappings", json={
-            "request": {
-                "method": "GET",
-                "urlPattern": "/repos/([^/]+)/([^/]+)/pulls.*"
+        await client.post(
+            f"{base_url}/__admin/mappings",
+            json={
+                "request": {"method": "GET", "urlPattern": "/repos/([^/]+)/([^/]+)/pulls.*"},
+                "response": {"status": 200, "headers": {"Content-Type": "application/json"}, "jsonBody": []},
             },
-            "response": {
-                "status": 200,
-                "headers": {"Content-Type": "application/json"},
-                "jsonBody": []
-            }
-        })
+        )
 
     yield base_url
 
 
 @pytest_asyncio.fixture
 async def claude_api_mock(claude_mock_server: DockerContainer) -> AsyncGenerator[str]:
-    """Setup Claude API mocking."""
+    """Set up Claude API mocking."""
     base_url = f"http://{claude_mock_server.get_container_host_ip()}:{claude_mock_server.get_exposed_port(80)}"
 
     # Mock successful Claude response
@@ -140,7 +136,7 @@ async def claude_api_mock(claude_mock_server: DockerContainer) -> AsyncGenerator
 
 @pytest_asyncio.fixture
 async def telegram_api_mock(telegram_mock_server: DockerContainer) -> AsyncGenerator[str]:
-    """Setup Telegram Bot API mocking."""
+    """Set up Telegram Bot API mocking."""
     base_url = f"http://{telegram_mock_server.get_container_host_ip()}:{telegram_mock_server.get_exposed_port(80)}"
 
     # Mock successful Telegram response
@@ -175,7 +171,7 @@ def mock_environment_vars():
         "TELEGRAM_BOT_TOKEN": "test-telegram-token",
         "TELEGRAM_CHAT_ID": "test-chat-id",
         "REDIS_URL": "redis://localhost:6379/0",  # Will be overridden by test
-        "WEBHOOK_SECRET": "test-webhook-secret"
+        "WEBHOOK_SECRET": "test-webhook-secret",
     }
 
     with patch.dict(os.environ, env_vars, clear=True):
@@ -189,8 +185,8 @@ async def integration_test_setup(
     claude_api_mock: str,
     telegram_api_mock: str,
     test_config: Config,
-    mock_environment_vars: dict[str, str]
-) -> dict[str, any]:
+    mock_environment_vars: dict[str, str],
+) -> dict[str, Any]:
     """Complete integration test setup with all mocked services."""
     return {
         "redis_client": redis_client,
@@ -198,13 +194,14 @@ async def integration_test_setup(
         "claude_api_base_url": claude_api_mock,
         "telegram_api_base_url": telegram_api_mock,
         "config": test_config,
-        "env_vars": mock_environment_vars
+        "env_vars": mock_environment_vars,
     }
 
 
 # Helper functions for creating test data
 
-def create_test_pr_data(pr_number: int = 123, status: str = "open") -> dict[str, any]:
+
+def create_test_pr_data(pr_number: int = 123, status: str = "open") -> dict[str, Any]:
     """Create test PR data structure."""
     return {
         "id": 12345,
@@ -212,23 +209,15 @@ def create_test_pr_data(pr_number: int = 123, status: str = "open") -> dict[str,
         "state": status,
         "title": f"Test PR #{pr_number}",
         "body": "Test PR description",
-        "head": {
-            "ref": "feature-branch",
-            "sha": "abc123def456"
-        },
-        "base": {
-            "ref": "main",
-            "sha": "def456abc123"
-        },
-        "user": {
-            "login": "test-user"
-        },
+        "head": {"ref": "feature-branch", "sha": "abc123def456"},
+        "base": {"ref": "main", "sha": "def456abc123"},
+        "user": {"login": "test-user"},
         "created_at": "2024-01-01T10:00:00Z",
-        "updated_at": "2024-01-01T11:00:00Z"
+        "updated_at": "2024-01-01T11:00:00Z",
     }
 
 
-def create_test_check_data(name: str = "ci/test", status: str = "failure") -> dict[str, any]:
+def create_test_check_data(name: str = "ci/test", status: str = "failure") -> dict[str, Any]:
     """Create test check run data structure."""
     return {
         "id": 54321,
@@ -238,35 +227,18 @@ def create_test_check_data(name: str = "ci/test", status: str = "failure") -> di
         "started_at": "2024-01-01T10:05:00Z",
         "completed_at": "2024-01-01T10:10:00Z",
         "details_url": "https://github.com/test-org/test-repo/runs/54321",
-        "output": {
-            "title": f"{name} failed",
-            "summary": "Test failure summary",
-            "text": "Detailed test failure output..."
-        }
+        "output": {"title": f"{name} failed", "summary": "Test failure summary", "text": "Detailed test failure output..."},
     }
 
 
-def create_claude_fix_response(*, success: bool = True) -> dict[str, any]:
+def create_claude_fix_response(*, success: bool = True) -> dict[str, Any]:
     """Create test Claude API response for fix attempts."""
     if success:
         return {
             "type": "message",
             "content": [
-                {
-                    "type": "text",
-                    "text": "I've successfully fixed the failing tests by updating the test assertions."
-                }
+                {"type": "text", "text": "I've successfully fixed the failing tests by updating the test assertions."}
             ],
-            "usage": {
-                "input_tokens": 100,
-                "output_tokens": 50
-            }
+            "usage": {"input_tokens": 100, "output_tokens": 50},
         }
-    return {
-        "type": "error",
-        "error": {
-            "type": "api_error",
-            "message": "Unable to process the fix request"
-        }
-    }
-
+    return {"type": "error", "error": {"type": "api_error", "message": "Unable to process the fix request"}}

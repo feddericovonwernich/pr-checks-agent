@@ -1,6 +1,5 @@
 """End-to-end tests for error handling and recovery scenarios."""
 
-import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -10,7 +9,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 
 from src.graphs.monitor_graph import create_initial_state, create_monitor_graph
 
-from .conftest import create_test_check_data, create_test_pr_data
+from .conftest import create_test_pr_data
 
 
 @pytest.mark.asyncio
@@ -23,18 +22,16 @@ class TestErrorHandlingWorkflow:
         config = setup["config"]
 
         with patch("nodes.scanner.GitHubTool") as mock_github_tool:
-
             # Mock GitHub to fail first few calls, then succeed
             call_count = 0
-            def github_side_effect(*args, **kwargs):
+
+            def github_side_effect(*args: Any, **kwargs: Any) -> dict[str, Any]:
                 nonlocal call_count
                 call_count += 1
                 if call_count <= 2:
-                    raise ConnectionError("GitHub API unavailable")
-                return {
-                    "success": True,
-                    "prs": [create_test_pr_data(123)]
-                }
+                    msg = "GitHub API unavailable"
+                    raise ConnectionError(msg)
+                return {"success": True, "prs": [create_test_pr_data(123)]}
 
             mock_github_instance = AsyncMock()
             mock_github_tool.return_value = mock_github_instance
@@ -45,13 +42,13 @@ class TestErrorHandlingWorkflow:
                 config=config,
                 max_concurrent=1,
                 enable_tracing=True,
-                dry_run=True  # Use dry run for stability
+                dry_run=True,  # Use dry run for stability
             )
 
             initial_state = create_initial_state(
                 repository="test-org/test-repo",
                 config=config.repositories[0],
-                polling_interval=1  # Short interval for testing
+                polling_interval=1,  # Short interval for testing
             )
 
             # Run workflow until we see at least 3 API calls or timeout
@@ -70,7 +67,7 @@ class TestErrorHandlingWorkflow:
             # Verify the retry behavior worked
             assert call_count >= 2, f"Should have attempted GitHub API calls multiple times, got {call_count}"
             assert len(workflow_events) > 0, "Should have workflow events"
-            
+
             # The key test is that the mock side_effect worked as expected:
             # - First 2 calls should have failed (raised ConnectionError)
             # - Subsequent calls should have succeeded
@@ -82,24 +79,24 @@ class TestErrorHandlingWorkflow:
         config = setup["config"]
         redis_client = setup["redis_client"]
 
-        with patch("nodes.scanner.GitHubTool") as mock_github_tool, \
-             patch.object(redis_client, "save_monitor_state") as mock_save_monitor_state:
-
+        with (
+            patch("nodes.scanner.GitHubTool") as mock_github_tool,
+            patch.object(redis_client, "save_monitor_state") as mock_save_monitor_state,
+        ):
             # Mock GitHub API tool
             mock_github_instance = AsyncMock()
             mock_github_tool.return_value = mock_github_instance
-            mock_github_instance._arun.return_value = {
-                "success": True,
-                "prs": [create_test_pr_data(123)]
-            }
+            mock_github_instance._arun.return_value = {"success": True, "prs": [create_test_pr_data(123)]}
 
             # Mock Redis failures initially
             call_count = 0
-            def redis_side_effect(*args, **kwargs):
+
+            def redis_side_effect(*args: Any, **kwargs: Any) -> bool:
                 nonlocal call_count
                 call_count += 1
                 if call_count <= 2:
-                    raise RedisConnectionError("Redis connection lost")
+                    msg = "Redis connection lost"
+                    raise RedisConnectionError(msg)
                 return True
 
             mock_save_monitor_state.side_effect = redis_side_effect
@@ -109,13 +106,11 @@ class TestErrorHandlingWorkflow:
                 config=config,
                 max_concurrent=1,
                 enable_tracing=True,
-                dry_run=True  # Use dry run for stability
+                dry_run=True,  # Use dry run for stability
             )
 
             initial_state = create_initial_state(
-                repository="test-org/test-repo",
-                config=config.repositories[0],
-                polling_interval=1
+                repository="test-org/test-repo", config=config.repositories[0], polling_interval=1
             )
             initial_state["persistence"] = redis_client
 
@@ -135,7 +130,7 @@ class TestErrorHandlingWorkflow:
             # Verify basic functionality - workflow should continue despite Redis issues
             assert len(workflow_events) > 0, "Should have workflow events"
             assert mock_github_instance._arun.called, "GitHub tool should be called"
-            
+
             # Redis save operations might not be called in dry run mode, but that's ok
             # The key test is that the workflow continues to operate
 
@@ -146,16 +141,11 @@ class TestErrorHandlingWorkflow:
 
         # This test is quite complex because it needs the full workflow to reach Claude API
         # For now, let's simplify to test that Claude tool mocking works correctly
-        with patch("nodes.scanner.GitHubTool") as mock_github_tool, \
-             patch("nodes.invoker.ClaudeCodeTool") as mock_claude_tool:
-
+        with patch("nodes.scanner.GitHubTool") as mock_github_tool, patch("nodes.invoker.ClaudeCodeTool") as mock_claude_tool:
             # Mock GitHub API tool to return PR
             mock_github_instance = AsyncMock()
             mock_github_tool.return_value = mock_github_instance
-            mock_github_instance._arun.return_value = {
-                "success": True,
-                "prs": [create_test_pr_data(123)]
-            }
+            mock_github_instance._arun.return_value = {"success": True, "prs": [create_test_pr_data(123)]}
 
             # Mock Claude API tool timeout
             mock_claude_instance = AsyncMock()
@@ -167,13 +157,11 @@ class TestErrorHandlingWorkflow:
                 config=config,
                 max_concurrent=1,
                 enable_tracing=True,
-                dry_run=True  # Use dry run for stability
+                dry_run=True,  # Use dry run for stability
             )
 
             initial_state = create_initial_state(
-                repository="test-org/test-repo",
-                config=config.repositories[0],
-                polling_interval=1
+                repository="test-org/test-repo", config=config.repositories[0], polling_interval=1
             )
 
             # Run workflow for limited cycles
@@ -192,7 +180,7 @@ class TestErrorHandlingWorkflow:
             # Verify basic functionality - the key is that mocking is working
             assert len(workflow_events) > 0, "Should have workflow events"
             assert mock_github_instance._arun.called, "GitHub tool should be called"
-            
+
             # In a complex integration scenario, Claude timeout would be handled gracefully
             # but testing this requires a more complex setup that triggers the full workflow path
 
@@ -204,16 +192,13 @@ class TestErrorHandlingWorkflow:
         # This test is quite complex as it involves running concurrent workflows
         # Let's simplify to test basic isolation through mocking
         with patch("nodes.scanner.GitHubTool") as mock_github_tool:
-
-            # Mock different behaviors for different repositories  
-            def github_side_effect(*args, **kwargs):
+            # Mock different behaviors for different repositories
+            def github_side_effect(*args: Any, **kwargs: Any) -> dict[str, Any]:
                 repository = kwargs.get("repository", "")
                 if "failing-repo" in str(repository):
-                    raise ConnectionError("Simulated failure for failing repo")
-                return {
-                    "success": True,
-                    "prs": [create_test_pr_data(123)]
-                }
+                    msg = "Simulated failure for failing repo"
+                    raise ConnectionError(msg)
+                return {"success": True, "prs": [create_test_pr_data(123)]}
 
             mock_github_instance = AsyncMock()
             mock_github_tool.return_value = mock_github_instance
@@ -224,14 +209,12 @@ class TestErrorHandlingWorkflow:
                 config=config,
                 max_concurrent=1,  # Simplified to single concurrent for testing
                 enable_tracing=True,
-                dry_run=True
+                dry_run=True,
             )
 
             # Test working repository first
             working_state = create_initial_state(
-                repository="test-org/working-repo",
-                config=config.repositories[0],
-                polling_interval=1
+                repository="test-org/working-repo", config=config.repositories[0], polling_interval=1
             )
 
             working_events = []
@@ -246,9 +229,7 @@ class TestErrorHandlingWorkflow:
 
             # Test failing repository
             failing_state = create_initial_state(
-                repository="test-org/failing-repo", 
-                config=config.repositories[0],
-                polling_interval=1
+                repository="test-org/failing-repo", config=config.repositories[0], polling_interval=1
             )
 
             failing_events = []
@@ -277,24 +258,19 @@ class TestErrorHandlingWorkflow:
             # Mock GitHub API tool
             mock_github_instance = AsyncMock()
             mock_github_tool.return_value = mock_github_instance
-            mock_github_instance._arun.return_value = {
-                "success": True,
-                "prs": [create_test_pr_data(123)]
-            }
+            mock_github_instance._arun.return_value = {"success": True, "prs": [create_test_pr_data(123)]}
 
             # Create workflow
             graph = create_monitor_graph(
                 config=config,
                 max_concurrent=1,
                 enable_tracing=True,
-                dry_run=True  # Use dry run for stability
+                dry_run=True,  # Use dry run for stability
             )
 
             # Create a fresh initial state (recovery scenario)
             initial_state = create_initial_state(
-                repository="test-org/test-repo",
-                config=config.repositories[0],
-                polling_interval=1
+                repository="test-org/test-repo", config=config.repositories[0], polling_interval=1
             )
             initial_state["persistence"] = redis_client
 
@@ -312,7 +288,7 @@ class TestErrorHandlingWorkflow:
             # Verify basic recovery/resilience functionality
             assert len(workflow_events) > 0, "Workflow should generate events despite state issues"
             assert mock_github_instance._arun.called, "GitHub tool should be called"
-            
+
             # The key test is that workflow continues to operate with fresh state
 
     async def test_network_partition_simulation(self, integration_test_setup: dict[str, Any]):
@@ -321,19 +297,17 @@ class TestErrorHandlingWorkflow:
         config = setup["config"]
 
         with patch("nodes.scanner.GitHubTool") as mock_github_tool:
-
             # Simulate limited intermittent network failures (to avoid infinite loops)
             call_count = 0
-            def network_failure_simulation(*args, **kwargs):
+
+            def network_failure_simulation(*args: Any, **kwargs: Any) -> dict[str, Any]:
                 nonlocal call_count
                 call_count += 1
                 # Fail the first 2 calls, then succeed to prevent recursion limit
                 if call_count <= 2:
-                    raise ConnectionError("Network partition")
-                return {
-                    "success": True,
-                    "prs": [create_test_pr_data(123)]
-                }
+                    msg = "Network partition"
+                    raise ConnectionError(msg)
+                return {"success": True, "prs": [create_test_pr_data(123)]}
 
             mock_github_instance = AsyncMock()
             mock_github_tool.return_value = mock_github_instance
@@ -344,13 +318,11 @@ class TestErrorHandlingWorkflow:
                 config=config,
                 max_concurrent=1,
                 enable_tracing=True,
-                dry_run=True  # Use dry run for stability
+                dry_run=True,  # Use dry run for stability
             )
 
             initial_state = create_initial_state(
-                repository="test-org/test-repo",
-                config=config.repositories[0],
-                polling_interval=1
+                repository="test-org/test-repo", config=config.repositories[0], polling_interval=1
             )
 
             # Run workflow for limited cycles
@@ -376,4 +348,3 @@ class TestErrorHandlingWorkflow:
         async with httpx.AsyncClient() as client:
             # This will be handled by the mock side effects in the tests
             pass
-

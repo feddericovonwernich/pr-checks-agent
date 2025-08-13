@@ -1,6 +1,5 @@
 """End-to-end tests for the happy path workflow scenarios."""
 
-import asyncio
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
@@ -10,7 +9,7 @@ import pytest
 from src.graphs.monitor_graph import create_initial_state, create_monitor_graph
 from src.state.schemas import MonitorState
 
-from .conftest import create_claude_fix_response, create_test_check_data, create_test_pr_data
+from .conftest import create_test_check_data, create_test_pr_data
 
 
 @pytest.mark.asyncio
@@ -27,29 +26,24 @@ class TestHappyPathWorkflow:
             # Mock GitHub API tool calls
             mock_github_instance = AsyncMock()
             mock_github_tool.return_value = mock_github_instance
-            mock_github_instance._arun.return_value = {
-                "success": True,
-                "prs": [create_test_pr_data(123)]
-            }
+            mock_github_instance._arun.return_value = {"success": True, "prs": [create_test_pr_data(123)]}
 
             # Create the monitoring graph
             graph = create_monitor_graph(
                 config=config,
                 max_concurrent=1,
                 enable_tracing=True,
-                dry_run=True  # Use dry run to avoid side effects
+                dry_run=True,  # Use dry run to avoid side effects
             )
 
             # Create initial state
             initial_state = create_initial_state(
-                repository="test-org/test-repo",
-                config=config.repositories[0],
-                polling_interval=1
+                repository="test-org/test-repo", config=config.repositories[0], polling_interval=1
             )
 
             # Run one iteration of the workflow
             events_collected = 0
-            async for event in graph.astream(initial_state):
+            async for _event in graph.astream(initial_state):
                 events_collected += 1
                 # Just run one cycle to verify mocking works
                 if events_collected >= 1:
@@ -68,24 +62,19 @@ class TestHappyPathWorkflow:
             # Mock empty PR list
             mock_github_instance = AsyncMock()
             mock_github_tool.return_value = mock_github_instance
-            mock_github_instance._arun.return_value = {
-                "success": True,
-                "prs": []
-            }
+            mock_github_instance._arun.return_value = {"success": True, "prs": []}
 
             # Create workflow graph
             graph = create_monitor_graph(
                 config=config,
                 max_concurrent=1,
                 enable_tracing=True,
-                dry_run=True  # Use dry run to avoid side effects
+                dry_run=True,  # Use dry run to avoid side effects
             )
 
             # Create initial state
             initial_state = create_initial_state(
-                repository="test-org/test-repo",
-                config=config.repositories[0],
-                polling_interval=1
+                repository="test-org/test-repo", config=config.repositories[0], polling_interval=1
             )
 
             # Run workflow for limited cycles
@@ -104,7 +93,7 @@ class TestHappyPathWorkflow:
             # Verify basic functionality - should have events and mock should be called
             assert len(workflow_events) > 0, "Should have at least one workflow event"
             assert mock_github_instance._arun.called, "GitHub tool should be called"
-            
+
             # Verify that mock returned empty PRs (no PRs were processed)
             call_args = mock_github_instance._arun.call_args
             assert call_args is not None, "GitHub tool should have been called with arguments"
@@ -114,16 +103,14 @@ class TestHappyPathWorkflow:
         setup = integration_test_setup
         config = setup["config"]
 
-        with patch("nodes.scanner.GitHubTool") as mock_scanner_github_tool, \
-             patch("nodes.monitor.GitHubTool") as mock_monitor_github_tool:
-
+        with (
+            patch("nodes.scanner.GitHubTool") as mock_scanner_github_tool,
+            patch("nodes.monitor.GitHubTool") as mock_monitor_github_tool,
+        ):
             # Mock scanner GitHub tool - returns PR
             mock_scanner_instance = AsyncMock()
             mock_scanner_github_tool.return_value = mock_scanner_instance
-            mock_scanner_instance._arun.return_value = {
-                "success": True,
-                "prs": [create_test_pr_data(123)]
-            }
+            mock_scanner_instance._arun.return_value = {"success": True, "prs": [create_test_pr_data(123)]}
 
             # Mock monitor GitHub tool - returns all passing checks
             mock_monitor_instance = AsyncMock()
@@ -132,8 +119,8 @@ class TestHappyPathWorkflow:
                 "success": True,
                 "checks": {
                     "ci/test": {"status": "success", "conclusion": "success"},
-                    "ci/lint": {"status": "success", "conclusion": "success"}
-                }
+                    "ci/lint": {"status": "success", "conclusion": "success"},
+                },
             }
 
             # Create workflow graph
@@ -141,14 +128,12 @@ class TestHappyPathWorkflow:
                 config=config,
                 max_concurrent=1,
                 enable_tracing=True,
-                dry_run=True  # Use dry run for stability
+                dry_run=True,  # Use dry run for stability
             )
 
             # Create initial state
             initial_state = create_initial_state(
-                repository="test-org/test-repo",
-                config=config.repositories[0],
-                polling_interval=1
+                repository="test-org/test-repo", config=config.repositories[0], polling_interval=1
             )
 
             # Run workflow for limited cycles
@@ -167,58 +152,48 @@ class TestHappyPathWorkflow:
             # Verify basic functionality - both scanner and monitor should be called
             assert mock_scanner_instance._arun.called, "Scanner GitHub tool should be called"
             # Monitor might not be called if workflow doesn't proceed to monitoring
-            
+
             # Verify workflow events were generated
             assert len(workflow_events) > 0, "Should have workflow events"
 
     async def _setup_github_mocks_happy_path(
-        self,
-        base_url: str,
-        pr_number: int = 123,
-        initial_status: str = "failure",
-        fixed_status: str = "success"
+        self, base_url: str, pr_number: int = 123, initial_status: str = "failure", fixed_status: str = "success"
     ):
-        """Setup GitHub API mocks for happy path scenario."""
+        """Set up GitHub API mocks for happy path scenario."""
         async with httpx.AsyncClient() as client:
             # Mock PR details
-            await client.post(f"{base_url}/__admin/mappings", json={
-                "request": {
-                    "method": "GET",
-                    "urlPattern": f"/repos/test-org/test-repo/pulls/{pr_number}"
+            await client.post(
+                f"{base_url}/__admin/mappings",
+                json={
+                    "request": {"method": "GET", "urlPattern": f"/repos/test-org/test-repo/pulls/{pr_number}"},
+                    "response": {
+                        "status": 200,
+                        "headers": {"Content-Type": "application/json"},
+                        "jsonBody": create_test_pr_data(pr_number),
+                    },
                 },
-                "response": {
-                    "status": 200,
-                    "headers": {"Content-Type": "application/json"},
-                    "jsonBody": create_test_pr_data(pr_number)
-                }
-            })
+            )
 
             # Mock check runs - initially failing, then passing after fix
-            await client.post(f"{base_url}/__admin/mappings", json={
-                "priority": 1,  # Lower priority (checked first)
-                "request": {
-                    "method": "GET",
-                    "urlPattern": "/repos/test-org/test-repo/commits/.*/check-runs"
+            await client.post(
+                f"{base_url}/__admin/mappings",
+                json={
+                    "priority": 1,  # Lower priority (checked first)
+                    "request": {"method": "GET", "urlPattern": "/repos/test-org/test-repo/commits/.*/check-runs"},
+                    "response": {
+                        "status": 200,
+                        "headers": {"Content-Type": "application/json"},
+                        "jsonBody": {"total_count": 1, "check_runs": [create_test_check_data("ci/test", initial_status)]},
+                    },
                 },
-                "response": {
-                    "status": 200,
-                    "headers": {"Content-Type": "application/json"},
-                    "jsonBody": {
-                        "total_count": 1,
-                        "check_runs": [create_test_check_data("ci/test", initial_status)]
-                    }
-                }
-            })
+            )
 
     async def _setup_claude_mock_success(self, base_url: str):
-        """Setup Claude API mock for successful fix response."""
+        """Set up Claude API mock for successful fix response."""
         # Claude API mocking will be handled by the anthropic client mock in the test
 
     async def _run_workflow_to_completion(
-        self,
-        graph: Any,
-        initial_state: MonitorState,
-        workflow_events: list
+        self, graph: Any, initial_state: MonitorState, workflow_events: list
     ) -> dict[str, Any]:
         """Run workflow until completion or significant milestone."""
         fix_attempted = False
@@ -251,7 +226,7 @@ class TestHappyPathWorkflow:
             "fix_attempted": fix_attempted,
             "fix_successful": fix_successful,
             "monitoring_cycles": monitoring_cycles,
-            "total_events": len(workflow_events)
+            "total_events": len(workflow_events),
         }
 
     async def _verify_state_persistence(self, redis_client: Any, repository: str):
@@ -280,4 +255,3 @@ class TestHappyPathWorkflow:
 
         # Events should be in reasonable order (scan before monitor, etc.)
         assert len(workflow_events) > 0, "Should have at least some workflow events"
-
