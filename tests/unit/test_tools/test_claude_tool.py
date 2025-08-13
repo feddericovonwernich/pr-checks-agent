@@ -120,7 +120,7 @@ class TestClaudeCodeTool:
 
         # Should only call subprocess once during initialization for version check
         assert mock_subprocess.call_count == 1
-        mock_subprocess.assert_called_with(["claude", "--version"], capture_output=True, text=True, timeout=10)
+        mock_subprocess.assert_called_with(["claude", "--version"], check=False, capture_output=True, text=True, timeout=10)
 
     @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test_api_key"})
     @patch("subprocess.run")
@@ -150,7 +150,7 @@ class TestClaudeCodeTool:
 
         # Should only call subprocess once during initialization for version check
         assert mock_subprocess.call_count == 1
-        mock_subprocess.assert_called_with(["claude", "--version"], capture_output=True, text=True, timeout=10)
+        mock_subprocess.assert_called_with(["claude", "--version"], check=False, capture_output=True, text=True, timeout=10)
 
     @patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test_api_key"})
     @patch("subprocess.run")
