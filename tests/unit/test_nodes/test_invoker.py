@@ -29,7 +29,7 @@ class TestClaudeInvokerNode:
             claude_context={
                 "language": "python",
                 "framework": "fastapi",
-            }
+            },
         )
 
         return {
@@ -79,11 +79,11 @@ class TestClaudeInvokerNode:
                 "fixable": True,
                 "suggested_actions": [
                     "Add missing import statement to main.py",
-                    "Verify all dependencies are in requirements.txt"
+                    "Verify all dependencies are in requirements.txt",
                 ],
                 "failure_context": "Build failed: ModuleNotFoundError: No module named 'requests'",
-                "attempt_id": "analysis_123"
-            }
+                "attempt_id": "analysis_123",
+            },
         }
 
     @pytest.mark.asyncio
@@ -283,20 +283,14 @@ class TestClaudeInvokerNode:
                 "pr_number": 123,
                 "check_name": "CI",
                 "fixable": True,
-                "analysis": {
-                    "failure_context": "Build error 1",
-                    "suggested_actions": ["Fix 1"]
-                }
+                "analysis": {"failure_context": "Build error 1", "suggested_actions": ["Fix 1"]},
             },
             {
                 "pr_number": 456,
                 "check_name": "Tests",
                 "fixable": True,
-                "analysis": {
-                    "failure_context": "Test error 2",
-                    "suggested_actions": ["Fix 2"]
-                }
-            }
+                "analysis": {"failure_context": "Test error 2", "suggested_actions": ["Fix 2"]},
+            },
         ]
 
         mock_claude_instance = AsyncMock()
@@ -305,7 +299,7 @@ class TestClaudeInvokerNode:
         # Mock different results for each fix
         mock_responses = [
             {"success": True, "fix_description": "Fixed CI issue"},
-            {"success": False, "error": "Could not fix tests"}
+            {"success": False, "error": "Could not fix tests"},
         ]
         mock_claude_instance._arun.side_effect = mock_responses
 
@@ -349,16 +343,12 @@ class TestCreateFixPrompt:
             "suggested_actions": [
                 "Add 'import requests' at the top of main.py",
                 "Verify requests is in requirements.txt",
-                "Run tests to confirm fix"
+                "Run tests to confirm fix",
             ],
-            "failure_context": "ModuleNotFoundError: No module named 'requests'"
+            "failure_context": "ModuleNotFoundError: No module named 'requests'",
         }
 
-        pr_info = {
-            "title": "Add user authentication",
-            "branch": "feature-auth",
-            "author": "developer"
-        }
+        pr_info = {"title": "Add user authentication", "branch": "feature-auth", "author": "developer"}
 
         config = RepositoryConfig(owner="test", repo="test")
 
@@ -383,11 +373,7 @@ class TestCreateFixPrompt:
             "suggested_actions": [],
         }
 
-        pr_info = {
-            "title": "",
-            "branch": "",
-            "author": ""
-        }
+        pr_info = {"title": "", "branch": "", "author": ""}
 
         config = RepositoryConfig(owner="test", repo="test")
 
@@ -401,9 +387,7 @@ class TestCreateFixPrompt:
 
     def test_create_fix_prompt_no_analysis(self):
         """Test fix prompt with missing analysis text."""
-        analysis = {
-            "suggested_actions": ["Do something"]
-        }
+        analysis = {"suggested_actions": ["Do something"]}
 
         pr_info = {"title": "Test PR"}
         config = RepositoryConfig(owner="test", repo="test")
@@ -426,7 +410,7 @@ class TestShouldRetryOrEscalate:
             "fix_results": [
                 {"pr_number": 123, "check_name": "CI", "success": True},
                 {"pr_number": 456, "check_name": "Tests", "success": True},
-            ]
+            ],
         }
 
         result = should_retry_or_escalate(state)
@@ -434,27 +418,19 @@ class TestShouldRetryOrEscalate:
 
     def test_should_retry_or_escalate_need_retry(self):
         """Test decision when some fixes need retry."""
-        config = RepositoryConfig(
-            owner="test-org",
-            repo="test-repo",
-            fix_limits={"max_attempts": 3}
-        )
+        config = RepositoryConfig(owner="test-org", repo="test-repo", fix_limits={"max_attempts": 3})
 
         state = {
             "config": config,
-            "fix_results": [
-                {"pr_number": 123, "check_name": "CI", "success": False}
-            ],
+            "fix_results": [{"pr_number": 123, "check_name": "CI", "success": False}],
             "active_prs": {
                 123: {
                     "failed_checks": ["CI"],
                     "fix_attempts": {
-                        "CI": [
-                            {"status": FixAttemptStatus.FAILURE.value}
-                        ]  # Only 1 attempt, can retry
-                    }
+                        "CI": [{"status": FixAttemptStatus.FAILURE.value}]  # Only 1 attempt, can retry
+                    },
                 }
-            }
+            },
         }
 
         result = should_retry_or_escalate(state)
@@ -462,11 +438,7 @@ class TestShouldRetryOrEscalate:
 
     def test_should_retry_or_escalate_need_escalation(self):
         """Test decision when issues need escalation."""
-        config = RepositoryConfig(
-            owner="test-org",
-            repo="test-repo",
-            fix_limits={"max_attempts": 2}
-        )
+        config = RepositoryConfig(owner="test-org", repo="test-repo", fix_limits={"max_attempts": 2})
 
         state = {
             "config": config,
@@ -479,9 +451,9 @@ class TestShouldRetryOrEscalate:
                             {"status": FixAttemptStatus.FAILURE.value},
                             {"status": FixAttemptStatus.FAILURE.value},
                         ]  # Max attempts reached
-                    }
+                    },
                 }
-            }
+            },
         }
 
         result = should_retry_or_escalate(state)
@@ -489,11 +461,7 @@ class TestShouldRetryOrEscalate:
 
     def test_should_retry_or_escalate_mixed_scenario(self):
         """Test decision with mixed retry/escalation needs."""
-        config = RepositoryConfig(
-            owner="test-org",
-            repo="test-repo",
-            fix_limits={"max_attempts": 2}
-        )
+        config = RepositoryConfig(owner="test-org", repo="test-repo", fix_limits={"max_attempts": 2})
 
         state = {
             "config": config,
@@ -503,7 +471,7 @@ class TestShouldRetryOrEscalate:
                     "failed_checks": ["CI"],
                     "fix_attempts": {
                         "CI": [{"status": FixAttemptStatus.FAILURE.value}]  # Can retry
-                    }
+                    },
                 },
                 456: {
                     "failed_checks": ["Tests"],
@@ -512,9 +480,9 @@ class TestShouldRetryOrEscalate:
                             {"status": FixAttemptStatus.FAILURE.value},
                             {"status": FixAttemptStatus.FAILURE.value},
                         ]  # Needs escalation
-                    }
-                }
-            }
+                    },
+                },
+            },
         }
 
         result = should_retry_or_escalate(state)
@@ -526,12 +494,7 @@ class TestShouldRetryOrEscalate:
         state = {
             "config": RepositoryConfig(owner="test", repo="test"),
             "fix_results": [],
-            "active_prs": {
-                123: {
-                    "failed_checks": [],
-                    "fix_attempts": {}
-                }
-            }
+            "active_prs": {123: {"failed_checks": [], "fix_attempts": {}}},
         }
 
         result = should_retry_or_escalate(state)
@@ -539,22 +502,14 @@ class TestShouldRetryOrEscalate:
 
     def test_should_retry_or_escalate_empty_state(self):
         """Test decision with empty state."""
-        state = {
-            "config": RepositoryConfig(owner="test", repo="test"),
-            "fix_results": [],
-            "active_prs": {}
-        }
+        state = {"config": RepositoryConfig(owner="test", repo="test"), "fix_results": [], "active_prs": {}}
 
         result = should_retry_or_escalate(state)
         assert result == "wait_for_next_poll"
 
     def test_should_retry_or_escalate_successful_previous_attempt(self):
         """Test decision ignores failed checks with successful attempts."""
-        config = RepositoryConfig(
-            owner="test-org",
-            repo="test-repo",
-            fix_limits={"max_attempts": 3}
-        )
+        config = RepositoryConfig(owner="test-org", repo="test-repo", fix_limits={"max_attempts": 3})
 
         state = {
             "config": config,
@@ -567,9 +522,9 @@ class TestShouldRetryOrEscalate:
                             {"status": FixAttemptStatus.FAILURE.value},
                             {"status": FixAttemptStatus.SUCCESS.value},  # Last attempt successful
                         ]
-                    }
+                    },
                 }
-            }
+            },
         }
 
         result = should_retry_or_escalate(state)
@@ -588,10 +543,7 @@ class TestInvokerIntegration:
 
         # Setup complex state
         config = RepositoryConfig(
-            owner="test-org",
-            repo="test-repo",
-            fix_limits={"max_attempts": 3},
-            claude_context={"language": "python"}
+            owner="test-org", repo="test-repo", fix_limits={"max_attempts": 3}, claude_context={"language": "python"}
         )
 
         state = {
@@ -619,8 +571,8 @@ class TestInvokerIntegration:
                     "analysis": {
                         "analysis": "Missing import causing build failure",
                         "suggested_actions": ["Add missing import"],
-                        "failure_context": "ImportError: missing module"
-                    }
+                        "failure_context": "ImportError: missing module",
+                    },
                 },
                 {
                     "pr_number": 123,
@@ -629,9 +581,9 @@ class TestInvokerIntegration:
                     "analysis": {
                         "analysis": "Potential SQL injection vulnerability",
                         "suggested_actions": ["Manual security review required"],
-                        "failure_context": "SQL injection risk detected"
-                    }
-                }
+                        "failure_context": "SQL injection risk detected",
+                    },
+                },
             ],
             "total_fixes_attempted": 0,
             "total_fixes_successful": 0,

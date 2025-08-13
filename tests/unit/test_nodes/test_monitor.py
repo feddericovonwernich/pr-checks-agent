@@ -22,10 +22,7 @@ class TestCheckMonitorNode:
         config = RepositoryConfig(
             owner="test-org",
             repo="test-repo",
-            priorities={
-                "check_types": {"security": 1, "tests": 2, "ci": 3},
-                "branch_priority": {"main": 0, "develop": 5}
-            }
+            priorities={"check_types": {"security": 1, "tests": 2, "ci": 3}, "branch_priority": {"main": 0, "develop": 5}},
         )
 
         return {
@@ -99,17 +96,15 @@ class TestCheckMonitorNode:
                     "status": CheckStatus.SUCCESS.value,
                     "conclusion": "success",
                     "details_url": "https://github.com/test-org/test-repo/runs/124",
-                }
-            }
+                },
+            },
         }
 
         result = await check_monitor_node(base_state)
 
         # Verify GitHub tool was called
         mock_tool_instance._arun.assert_called_once_with(
-            operation="get_checks",
-            repository="test-org/test-repo",
-            pr_number=123
+            operation="get_checks", repository="test-org/test-repo", pr_number=123
         )
 
         # Verify result
@@ -159,7 +154,7 @@ class TestCheckMonitorNode:
                     "failure_logs": "Build failed: syntax error",
                     "error_message": "SyntaxError: unexpected token",
                 }
-            }
+            },
         }
 
         result = await check_monitor_node(base_state)
@@ -205,7 +200,7 @@ class TestCheckMonitorNode:
                     "conclusion": "failure",
                     "details_url": "https://github.com/test-org/test-repo/runs/123",
                 }
-            }
+            },
         }
 
         result = await check_monitor_node(base_state)
@@ -225,10 +220,7 @@ class TestCheckMonitorNode:
 
         mock_tool_instance = AsyncMock()
         mock_github_tool.return_value = mock_tool_instance
-        mock_tool_instance._arun.return_value = {
-            "success": False,
-            "error": "API rate limit exceeded"
-        }
+        mock_tool_instance._arun.return_value = {"success": False, "error": "API rate limit exceeded"}
 
         result = await check_monitor_node(base_state)
 
@@ -277,14 +269,8 @@ class TestCheckMonitorNode:
 
         # Different responses for each PR
         mock_responses = [
-            {
-                "success": True,
-                "checks": {"CI": {"status": CheckStatus.SUCCESS.value}}
-            },
-            {
-                "success": True,
-                "checks": {"Tests": {"status": CheckStatus.FAILURE.value}}
-            }
+            {"success": True, "checks": {"CI": {"status": CheckStatus.SUCCESS.value}}},
+            {"success": True, "checks": {"Tests": {"status": CheckStatus.FAILURE.value}}},
         ]
         mock_tool_instance._arun.side_effect = mock_responses
 
@@ -326,7 +312,7 @@ class TestShouldAnalyzeFailures:
                 123: {"workflow_step": "needs_analysis"},
                 456: {"workflow_step": "analyzed"},
                 789: {"workflow_step": "needs_analysis"},
-            }
+            },
         }
 
         result = should_analyze_failures(state)
@@ -340,7 +326,7 @@ class TestShouldAnalyzeFailures:
                 123: {"workflow_step": "analyzed"},
                 456: {"workflow_step": "fixing"},
                 789: {"workflow_step": "escalated"},
-            }
+            },
         }
 
         result = should_analyze_failures(state)
@@ -348,10 +334,7 @@ class TestShouldAnalyzeFailures:
 
     def test_should_analyze_failures_empty_state(self):
         """Test analyze decision with empty state."""
-        state = {
-            "newly_failed_checks": [],
-            "active_prs": {}
-        }
+        state = {"newly_failed_checks": [], "active_prs": {}}
 
         result = should_analyze_failures(state)
         assert result == "wait_for_next_poll"
@@ -384,40 +367,22 @@ class TestPrioritizeFailures:
                     "main": 0,
                     "develop": 5,
                     "feature": 10,
-                }
-            }
+                },
+            },
         )
 
         return {
             "config": config,
             "newly_failed_checks": [
-                {
-                    "pr_number": 123,
-                    "check_name": "Security Scan",
-                    "check_info": {"status": "failure"}
-                },
-                {
-                    "pr_number": 456,
-                    "check_name": "CI Build",
-                    "check_info": {"status": "failure"}
-                },
-                {
-                    "pr_number": 789,
-                    "check_name": "Unit Tests",
-                    "check_info": {"status": "failure"}
-                }
+                {"pr_number": 123, "check_name": "Security Scan", "check_info": {"status": "failure"}},
+                {"pr_number": 456, "check_name": "CI Build", "check_info": {"status": "failure"}},
+                {"pr_number": 789, "check_name": "Unit Tests", "check_info": {"status": "failure"}},
             ],
             "active_prs": {
-                123: {
-                    "pr_info": {"base_branch": "main"}
-                },
-                456: {
-                    "pr_info": {"base_branch": "develop"}
-                },
-                789: {
-                    "pr_info": {"base_branch": "feature"}
-                }
-            }
+                123: {"pr_info": {"base_branch": "main"}},
+                456: {"pr_info": {"base_branch": "develop"}},
+                789: {"pr_info": {"base_branch": "feature"}},
+            },
         }
 
     @pytest.mark.asyncio
@@ -446,10 +411,7 @@ class TestPrioritizeFailures:
     @pytest.mark.asyncio
     async def test_prioritize_failures_no_newly_failed(self):
         """Test prioritization with no newly failed checks."""
-        state = {
-            "config": RepositoryConfig(owner="test", repo="test"),
-            "newly_failed_checks": []
-        }
+        state = {"config": RepositoryConfig(owner="test", repo="test"), "newly_failed_checks": []}
 
         result = await prioritize_failures(state)
         # Should return state unchanged
@@ -461,27 +423,16 @@ class TestPrioritizeFailures:
         config = RepositoryConfig(
             owner="test-org",
             repo="test-repo",
-            priorities={}  # No specific priorities
+            priorities={},  # No specific priorities
         )
 
         state = {
             "config": config,
             "newly_failed_checks": [
-                {
-                    "pr_number": 100,
-                    "check_name": "Unknown Check",
-                    "check_info": {"status": "failure"}
-                },
-                {
-                    "pr_number": 200,
-                    "check_name": "Another Check",
-                    "check_info": {"status": "failure"}
-                }
+                {"pr_number": 100, "check_name": "Unknown Check", "check_info": {"status": "failure"}},
+                {"pr_number": 200, "check_name": "Another Check", "check_info": {"status": "failure"}},
             ],
-            "active_prs": {
-                100: {"pr_info": {"base_branch": "unknown"}},
-                200: {"pr_info": {"base_branch": "unknown"}}
-            }
+            "active_prs": {100: {"pr_info": {"base_branch": "unknown"}}, 200: {"pr_info": {"base_branch": "unknown"}}},
         }
 
         result = await prioritize_failures(state)
@@ -500,7 +451,7 @@ class TestPrioritizeFailures:
             priorities={
                 "check_types": {"security": 1},  # Only one type configured
                 # No branch priorities
-            }
+            },
         )
 
         state = {
@@ -509,18 +460,15 @@ class TestPrioritizeFailures:
                 {
                     "pr_number": 123,
                     "check_name": "Security Check",  # Should get priority 1
-                    "check_info": {"status": "failure"}
+                    "check_info": {"status": "failure"},
                 },
                 {
                     "pr_number": 456,
                     "check_name": "Regular Check",  # Should get default priority 100
-                    "check_info": {"status": "failure"}
-                }
+                    "check_info": {"status": "failure"},
+                },
             ],
-            "active_prs": {
-                123: {"pr_info": {"base_branch": "main"}},
-                456: {"pr_info": {"base_branch": "main"}}
-            }
+            "active_prs": {123: {"pr_info": {"base_branch": "main"}}, 456: {"pr_info": {"base_branch": "main"}}},
         }
 
         result = await prioritize_failures(state)
@@ -546,10 +494,7 @@ class TestMonitorIntegration:
         config = RepositoryConfig(
             owner="test-org",
             repo="test-repo",
-            priorities={
-                "check_types": {"security": 1, "ci": 3},
-                "branch_priority": {"main": 0}
-            }
+            priorities={"check_types": {"security": 1, "ci": 3}, "branch_priority": {"main": 0}},
         )
 
         state = {
@@ -586,8 +531,8 @@ class TestMonitorIntegration:
                     "status": CheckStatus.FAILURE.value,
                     "conclusion": "failure",
                     "details_url": "https://github.com/test-org/test-repo/runs/124",
-                }
-            }
+                },
+            },
         }
 
         # Step 1: Monitor checks

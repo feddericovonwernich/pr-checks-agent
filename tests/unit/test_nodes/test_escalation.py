@@ -31,7 +31,7 @@ class TestEscalationNode:
             notifications={
                 "escalation_mentions": ["@security-team", "@dev-leads"],
                 "telegram_channel": "#alerts",
-            }
+            },
         )
 
         return {
@@ -93,10 +93,7 @@ class TestEscalationNode:
         # Mock Telegram tool
         mock_telegram_instance = AsyncMock()
         mock_telegram_tool.return_value = mock_telegram_instance
-        mock_telegram_instance._arun.return_value = {
-            "success": True,
-            "message_id": "telegram_msg_456"
-        }
+        mock_telegram_instance._arun.return_value = {"success": True, "message_id": "telegram_msg_456"}
 
         result = await escalation_node(base_state)
 
@@ -148,18 +145,13 @@ class TestEscalationNode:
 
     @patch("src.nodes.escalation.TelegramTool")
     @pytest.mark.asyncio
-    async def test_escalation_node_telegram_failure(
-        self, mock_telegram_tool, base_state, sample_pr_state_needs_escalation
-    ):
+    async def test_escalation_node_telegram_failure(self, mock_telegram_tool, base_state, sample_pr_state_needs_escalation):
         """Test escalation when Telegram notification fails."""
         base_state["active_prs"] = {123: sample_pr_state_needs_escalation}
 
         mock_telegram_instance = AsyncMock()
         mock_telegram_tool.return_value = mock_telegram_instance
-        mock_telegram_instance._arun.return_value = {
-            "success": False,
-            "error": "Telegram bot token invalid"
-        }
+        mock_telegram_instance._arun.return_value = {"success": False, "error": "Telegram bot token invalid"}
 
         result = await escalation_node(base_state)
 
@@ -174,9 +166,7 @@ class TestEscalationNode:
 
     @patch("src.nodes.escalation.TelegramTool")
     @pytest.mark.asyncio
-    async def test_escalation_node_cooldown_active(
-        self, mock_telegram_tool, base_state, sample_pr_state_needs_escalation
-    ):
+    async def test_escalation_node_cooldown_active(self, mock_telegram_tool, base_state, sample_pr_state_needs_escalation):
         """Test escalation when cooldown is active."""
         # Add recent escalation to trigger cooldown
         recent_escalation = {
@@ -200,9 +190,7 @@ class TestEscalationNode:
 
     @patch("src.nodes.escalation.TelegramTool")
     @pytest.mark.asyncio
-    async def test_escalation_node_cooldown_expired(
-        self, mock_telegram_tool, base_state, sample_pr_state_needs_escalation
-    ):
+    async def test_escalation_node_cooldown_expired(self, mock_telegram_tool, base_state, sample_pr_state_needs_escalation):
         """Test escalation when cooldown has expired."""
         # Add old escalation, cooldown should be expired
         old_escalation = {
@@ -217,10 +205,7 @@ class TestEscalationNode:
 
         mock_telegram_instance = AsyncMock()
         mock_telegram_tool.return_value = mock_telegram_instance
-        mock_telegram_instance._arun.return_value = {
-            "success": True,
-            "message_id": "new_msg_789"
-        }
+        mock_telegram_instance._arun.return_value = {"success": True, "message_id": "new_msg_789"}
 
         result = await escalation_node(base_state)
 
@@ -268,11 +253,7 @@ class TestIdentifyEscalationCandidates:
 
     def test_identify_escalation_candidates_max_attempts_reached(self):
         """Test identification of issues that reached max attempts."""
-        config = RepositoryConfig(
-            owner="test-org",
-            repo="test-repo",
-            fix_limits={"max_attempts": 2}
-        )
+        config = RepositoryConfig(owner="test-org", repo="test-repo", fix_limits={"max_attempts": 2})
 
         state = {
             "config": config,
@@ -285,11 +266,9 @@ class TestIdentifyEscalationCandidates:
                             {"status": "failure"},  # 2 failures = max attempts
                         ]
                     },
-                    "analysis_CI": {
-                        "failure_context": "Build failed with exit code 1"
-                    }
+                    "analysis_CI": {"failure_context": "Build failed with exit code 1"},
                 }
-            }
+            },
         }
 
         candidates = _identify_escalation_candidates(state)
@@ -303,11 +282,7 @@ class TestIdentifyEscalationCandidates:
 
     def test_identify_escalation_candidates_unfixable_issue(self):
         """Test identification of unfixable issues."""
-        config = RepositoryConfig(
-            owner="test-org",
-            repo="test-repo",
-            fix_limits={"max_attempts": 3}
-        )
+        config = RepositoryConfig(owner="test-org", repo="test-repo", fix_limits={"max_attempts": 3})
 
         state = {
             "config": config,
@@ -317,10 +292,10 @@ class TestIdentifyEscalationCandidates:
                     "fix_attempts": {},  # No fix attempts yet
                     "analysis_Security": {
                         "fixable": False,
-                        "failure_context": "SQL injection vulnerability requires manual review"
-                    }
+                        "failure_context": "SQL injection vulnerability requires manual review",
+                    },
                 }
-            }
+            },
         }
 
         candidates = _identify_escalation_candidates(state)
@@ -333,11 +308,7 @@ class TestIdentifyEscalationCandidates:
 
     def test_identify_escalation_candidates_mixed_scenarios(self):
         """Test identification with mixed scenarios."""
-        config = RepositoryConfig(
-            owner="test-org",
-            repo="test-repo",
-            fix_limits={"max_attempts": 2}
-        )
+        config = RepositoryConfig(owner="test-org", repo="test-repo", fix_limits={"max_attempts": 2})
 
         state = {
             "config": config,
@@ -349,19 +320,16 @@ class TestIdentifyEscalationCandidates:
                         "Tests": [
                             {"status": "failure"},
                             {"status": "failure"},  # Max attempts reached
-                        ]
+                        ],
                     },
-                    "analysis_Tests": {"failure_context": "Test failure"}
+                    "analysis_Tests": {"failure_context": "Test failure"},
                 },
                 456: {
                     "failed_checks": ["Security"],
                     "fix_attempts": {},
-                    "analysis_Security": {
-                        "fixable": False,
-                        "failure_context": "Security issue"
-                    }
-                }
-            }
+                    "analysis_Security": {"fixable": False, "failure_context": "Security issue"},
+                },
+            },
         }
 
         candidates = _identify_escalation_candidates(state)
@@ -374,11 +342,7 @@ class TestIdentifyEscalationCandidates:
 
     def test_identify_escalation_candidates_no_candidates(self):
         """Test identification when no escalation is needed."""
-        config = RepositoryConfig(
-            owner="test-org",
-            repo="test-repo",
-            fix_limits={"max_attempts": 3}
-        )
+        config = RepositoryConfig(owner="test-org", repo="test-repo", fix_limits={"max_attempts": 3})
 
         state = {
             "config": config,
@@ -388,9 +352,9 @@ class TestIdentifyEscalationCandidates:
                     "fix_attempts": {
                         "CI": [{"status": "failure"}]  # Still has attempts left
                     },
-                    "analysis_CI": {"fixable": True}  # Fixable, not yet at max attempts
+                    "analysis_CI": {"fixable": True},  # Fixable, not yet at max attempts
                 }
-            }
+            },
         }
 
         candidates = _identify_escalation_candidates(state)
@@ -398,11 +362,7 @@ class TestIdentifyEscalationCandidates:
 
     def test_identify_escalation_candidates_successful_attempt(self):
         """Test that successful attempts don't trigger escalation."""
-        config = RepositoryConfig(
-            owner="test-org",
-            repo="test-repo",
-            fix_limits={"max_attempts": 2}
-        )
+        config = RepositoryConfig(owner="test-org", repo="test-repo", fix_limits={"max_attempts": 2})
 
         state = {
             "config": config,
@@ -414,9 +374,9 @@ class TestIdentifyEscalationCandidates:
                             {"status": "failure"},
                             {"status": "success"},  # Last attempt succeeded
                         ]
-                    }
+                    },
                 }
-            }
+            },
         }
 
         candidates = _identify_escalation_candidates(state)
@@ -495,7 +455,7 @@ class TestIsInCooldown:
                 {
                     "check_name": "CI",
                     "timestamp": recent_time,  # Most recent should be used
-                }
+                },
             ]
         }
 
@@ -554,9 +514,7 @@ class TestHandleEscalationResponse:
             }
         }
 
-        result = await handle_escalation_response(
-            state, "esc_123", "acknowledged", "@security-lead", "Will review manually"
-        )
+        result = await handle_escalation_response(state, "esc_123", "acknowledged", "@security-lead", "Will review manually")
 
         # Verify escalation was updated
         escalation = result["active_prs"][123]["escalations"][0]
@@ -585,9 +543,7 @@ class TestHandleEscalationResponse:
             }
         }
 
-        result = await handle_escalation_response(
-            state, "nonexistent_id", "acknowledged", "@user", ""
-        )
+        result = await handle_escalation_response(state, "nonexistent_id", "acknowledged", "@user", "")
 
         # Should return original state unchanged
         assert result == state
@@ -633,9 +589,7 @@ class TestShouldContinueAfterEscalation:
 
     def test_should_continue_after_escalation_no_results(self):
         """Test decision with no escalation results."""
-        state = {
-            "escalation_results": []
-        }
+        state = {"escalation_results": []}
 
         result = should_continue_after_escalation(state)
         assert result == "wait_for_next_poll"
@@ -661,7 +615,7 @@ class TestEscalationIntegration:
             },
             notifications={
                 "escalation_mentions": ["@team-leads"],
-            }
+            },
         )
 
         state = {
@@ -695,7 +649,7 @@ class TestEscalationIntegration:
                     },
                     "escalations": [],
                     "escalation_status": "none",
-                }
+                },
             },
             "total_escalations": 0,
         }
@@ -735,8 +689,7 @@ class TestEscalationIntegration:
 
         # Step 4: Simulate human response
         responded_state = await handle_escalation_response(
-            escalated_state, "integration-escalation-id", "acknowledged",
-            "@security-lead", "Will fix manually"
+            escalated_state, "integration-escalation-id", "acknowledged", "@security-lead", "Will fix manually"
         )
 
         # Verify response was handled

@@ -61,18 +61,13 @@ class TestRepositoryScannerNode:
         # Setup mock
         mock_tool_instance = AsyncMock()
         mock_github_tool.return_value = mock_tool_instance
-        mock_tool_instance._arun.return_value = {
-            "success": True,
-            "prs": [sample_pr_data]
-        }
+        mock_tool_instance._arun.return_value = {"success": True, "prs": [sample_pr_data]}
 
         result = await repository_scanner_node(base_state)
 
         # Verify GitHub tool was called correctly
         mock_tool_instance._arun.assert_called_once_with(
-            operation="get_prs",
-            repository="test-org/test-repo",
-            branch_filter=["main", "develop"]
+            operation="get_prs", repository="test-org/test-repo", branch_filter=["main", "develop"]
         )
 
         # Verify result structure
@@ -132,10 +127,7 @@ class TestRepositoryScannerNode:
 
         mock_tool_instance = AsyncMock()
         mock_github_tool.return_value = mock_tool_instance
-        mock_tool_instance._arun.return_value = {
-            "success": True,
-            "prs": [updated_pr_data]
-        }
+        mock_tool_instance._arun.return_value = {"success": True, "prs": [updated_pr_data]}
 
         result = await repository_scanner_node(base_state)
 
@@ -170,10 +162,7 @@ class TestRepositoryScannerNode:
         # Mock response with no PRs (PR was closed)
         mock_tool_instance = AsyncMock()
         mock_github_tool.return_value = mock_tool_instance
-        mock_tool_instance._arun.return_value = {
-            "success": True,
-            "prs": []
-        }
+        mock_tool_instance._arun.return_value = {"success": True, "prs": []}
 
         result = await repository_scanner_node(base_state)
 
@@ -193,10 +182,7 @@ class TestRepositoryScannerNode:
         """Test repository scan when GitHub API fails."""
         mock_tool_instance = AsyncMock()
         mock_github_tool.return_value = mock_tool_instance
-        mock_tool_instance._arun.return_value = {
-            "success": False,
-            "error": "API rate limit exceeded"
-        }
+        mock_tool_instance._arun.return_value = {"success": False, "error": "API rate limit exceeded"}
 
         result = await repository_scanner_node(base_state)
 
@@ -256,10 +242,7 @@ class TestRepositoryScannerNode:
 
         mock_tool_instance = AsyncMock()
         mock_github_tool.return_value = mock_tool_instance
-        mock_tool_instance._arun.return_value = {
-            "success": True,
-            "prs": [pr_data_1, pr_data_2]
-        }
+        mock_tool_instance._arun.return_value = {"success": True, "prs": [pr_data_1, pr_data_2]}
 
         result = await repository_scanner_node(base_state)
 
@@ -286,10 +269,7 @@ class TestRepositoryScannerNode:
 
         mock_tool_instance = AsyncMock()
         mock_github_tool.return_value = mock_tool_instance
-        mock_tool_instance._arun.return_value = {
-            "success": True,
-            "prs": []
-        }
+        mock_tool_instance._arun.return_value = {"success": True, "prs": []}
 
         result = await repository_scanner_node(base_state)
 
@@ -303,42 +283,21 @@ class TestShouldContinueScanning:
 
     def test_should_continue_scanning_with_new_prs(self):
         """Test continue scanning decision with new PRs."""
-        state = {
-            "consecutive_errors": 0,
-            "scan_results": {
-                "new_prs": [123, 456],
-                "updated_prs": [],
-                "closed_prs": []
-            }
-        }
+        state = {"consecutive_errors": 0, "scan_results": {"new_prs": [123, 456], "updated_prs": [], "closed_prs": []}}
 
         result = should_continue_scanning(state)
         assert result == "monitor_checks"
 
     def test_should_continue_scanning_with_updated_prs(self):
         """Test continue scanning decision with updated PRs."""
-        state = {
-            "consecutive_errors": 0,
-            "scan_results": {
-                "new_prs": [],
-                "updated_prs": [123],
-                "closed_prs": []
-            }
-        }
+        state = {"consecutive_errors": 0, "scan_results": {"new_prs": [], "updated_prs": [123], "closed_prs": []}}
 
         result = should_continue_scanning(state)
         assert result == "monitor_checks"
 
     def test_should_continue_scanning_with_both(self):
         """Test continue scanning decision with both new and updated PRs."""
-        state = {
-            "consecutive_errors": 1,
-            "scan_results": {
-                "new_prs": [123],
-                "updated_prs": [456],
-                "closed_prs": [789]
-            }
-        }
+        state = {"consecutive_errors": 1, "scan_results": {"new_prs": [123], "updated_prs": [456], "closed_prs": [789]}}
 
         result = should_continue_scanning(state)
         assert result == "monitor_checks"
@@ -350,8 +309,8 @@ class TestShouldContinueScanning:
             "scan_results": {
                 "new_prs": [],
                 "updated_prs": [],
-                "closed_prs": [789]  # Only closed PRs, no active changes
-            }
+                "closed_prs": [789],  # Only closed PRs, no active changes
+            },
         }
 
         result = should_continue_scanning(state)
@@ -364,8 +323,8 @@ class TestShouldContinueScanning:
             "scan_results": {
                 "new_prs": [123],  # Even with changes, should handle errors first
                 "updated_prs": [],
-                "closed_prs": []
-            }
+                "closed_prs": [],
+            },
         }
 
         result = should_continue_scanning(state)
@@ -373,28 +332,14 @@ class TestShouldContinueScanning:
 
     def test_should_continue_scanning_exactly_error_threshold(self):
         """Test continue scanning decision at error threshold."""
-        state = {
-            "consecutive_errors": 5,
-            "scan_results": {
-                "new_prs": [],
-                "updated_prs": [],
-                "closed_prs": []
-            }
-        }
+        state = {"consecutive_errors": 5, "scan_results": {"new_prs": [], "updated_prs": [], "closed_prs": []}}
 
         result = should_continue_scanning(state)
         assert result == "handle_errors"
 
     def test_should_continue_scanning_just_below_threshold(self):
         """Test continue scanning decision just below error threshold."""
-        state = {
-            "consecutive_errors": 4,
-            "scan_results": {
-                "new_prs": [],
-                "updated_prs": [],
-                "closed_prs": []
-            }
-        }
+        state = {"consecutive_errors": 4, "scan_results": {"new_prs": [], "updated_prs": [], "closed_prs": []}}
 
         result = should_continue_scanning(state)
         assert result == "wait_for_next_poll"
@@ -413,11 +358,7 @@ class TestShouldContinueScanning:
         """Test continue scanning decision with missing consecutive errors."""
         state = {
             # No consecutive_errors key
-            "scan_results": {
-                "new_prs": [],
-                "updated_prs": [],
-                "closed_prs": []
-            }
+            "scan_results": {"new_prs": [], "updated_prs": [], "closed_prs": []}
         }
 
         result = should_continue_scanning(state)
@@ -460,7 +401,7 @@ class TestScannerIntegration:
                         "updated_at": "2024-01-01T11:00:00Z",
                     },
                     "workflow_step": "escalated",
-                }
+                },
             },
             "last_poll_time": datetime(2024, 1, 1, 12, 0, 0),
             "consecutive_errors": 0,
@@ -489,16 +430,13 @@ class TestScannerIntegration:
                 "created_at": "2024-01-01T13:00:00Z",
                 "draft": False,
                 "mergeable": True,
-            }
+            },
             # PR 200 is missing (closed)
         ]
 
         mock_tool_instance = AsyncMock()
         mock_github_tool.return_value = mock_tool_instance
-        mock_tool_instance._arun.return_value = {
-            "success": True,
-            "prs": current_prs
-        }
+        mock_tool_instance._arun.return_value = {"success": True, "prs": current_prs}
 
         result = await repository_scanner_node(complex_state)
 

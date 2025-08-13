@@ -25,7 +25,7 @@ class TestFailureAnalyzerNode:
                 "language": "python",
                 "framework": "fastapi",
                 "test_framework": "pytest",
-            }
+            },
         )
 
         return {
@@ -104,11 +104,8 @@ class TestFailureAnalyzerNode:
             "success": True,
             "analysis": "The build failed due to a syntax error in main.py at line 42. Missing colon after if statement.",
             "fixable": True,
-            "suggested_actions": [
-                "Add missing colon after if statement on line 42",
-                "Run syntax check to verify fix"
-            ],
-            "attempt_id": "attempt_123"
+            "suggested_actions": ["Add missing colon after if statement on line 42", "Run syntax check to verify fix"],
+            "attempt_id": "attempt_123",
         }
 
         result = await failure_analyzer_node(base_state)
@@ -169,13 +166,10 @@ class TestFailureAnalyzerNode:
         mock_claude_instance._arun.return_value = {
             "success": True,
             "analysis": "The failure is due to external service dependency being unavailable. "
-                        "This requires manual intervention.",
+            "This requires manual intervention.",
             "fixable": False,
-            "suggested_actions": [
-                "Contact external service provider",
-                "Check service status page"
-            ],
-            "attempt_id": "attempt_124"
+            "suggested_actions": ["Contact external service provider", "Check service status page"],
+            "attempt_id": "attempt_124",
         }
 
         result = await failure_analyzer_node(base_state)
@@ -206,10 +200,7 @@ class TestFailureAnalyzerNode:
 
         mock_claude_instance = AsyncMock()
         mock_claude_tool.return_value = mock_claude_instance
-        mock_claude_instance._arun.return_value = {
-            "success": False,
-            "error": "Claude Code CLI not available"
-        }
+        mock_claude_instance._arun.return_value = {"success": False, "error": "Claude Code CLI not available"}
 
         result = await failure_analyzer_node(base_state)
 
@@ -249,9 +240,7 @@ class TestFailureAnalyzerNode:
     @patch("src.nodes.analyzer.GitHubTool")
     @patch("src.nodes.analyzer.ClaudeCodeTool")
     @pytest.mark.asyncio
-    async def test_failure_analyzer_node_multiple_failures(
-        self, mock_claude_tool, mock_github_tool, base_state
-    ):
+    async def test_failure_analyzer_node_multiple_failures(self, mock_claude_tool, mock_github_tool, base_state):
         """Test analyzer with multiple failures."""
         # Setup multiple PR states
         pr_state_1 = {
@@ -278,7 +267,7 @@ class TestFailureAnalyzerNode:
                 "check_name": "Tests",
                 "check_info": {"status": "failure", "details_url": "url2"},
                 "priority_score": 2.0,
-            }
+            },
         ]
 
         # Mock tools
@@ -295,15 +284,15 @@ class TestFailureAnalyzerNode:
                 "analysis": "CI build issue",
                 "fixable": True,
                 "suggested_actions": ["Fix CI"],
-                "attempt_id": "attempt_1"
+                "attempt_id": "attempt_1",
             },
             {
                 "success": True,
                 "analysis": "Test failure",
                 "fixable": False,
                 "suggested_actions": ["Manual review needed"],
-                "attempt_id": "attempt_2"
-            }
+                "attempt_id": "attempt_2",
+            },
         ]
         mock_claude_instance._arun.side_effect = mock_responses
 
@@ -341,7 +330,7 @@ class TestFailureAnalyzerNode:
             "analysis": "Test analysis",
             "fixable": True,
             "suggested_actions": [],
-            "attempt_id": "test_id"
+            "attempt_id": "test_id",
         }
 
         # Verify dry_run is passed to Claude tool
@@ -372,9 +361,7 @@ class TestGetFailureContext:
         mock_tool_instance = AsyncMock()
         mock_github_tool.return_value = mock_tool_instance
 
-        context = await _get_failure_context(
-            mock_tool_instance, "test/repo", sample_check_info, "CI Build"
-        )
+        context = await _get_failure_context(mock_tool_instance, "test/repo", sample_check_info, "CI Build")
 
         # Verify basic information is included
         assert "Check: CI Build" in context
@@ -396,19 +383,15 @@ class TestGetFailureContext:
             "logs": [
                 "Step 1: Install dependencies",
                 "ERROR: Could not find module 'requests'",
-                "Build failed with exit code 1"
-            ]
+                "Build failed with exit code 1",
+            ],
         }
 
-        context = await _get_failure_context(
-            mock_tool_instance, "test/repo", sample_check_info, "CI Build"
-        )
+        context = await _get_failure_context(mock_tool_instance, "test/repo", sample_check_info, "CI Build")
 
         # Verify detailed logs were fetched and included
         mock_tool_instance._arun.assert_called_once_with(
-            operation="get_check_logs",
-            repository="test/repo",
-            check_run_id=123456
+            operation="get_check_logs", repository="test/repo", check_run_id=123456
         )
 
         assert "Failure Details:" in context
@@ -424,9 +407,7 @@ class TestGetFailureContext:
 
         mock_tool_instance = AsyncMock()
 
-        context = await _get_failure_context(
-            mock_tool_instance, "test/repo", sample_check_info, "CI Build"
-        )
+        context = await _get_failure_context(mock_tool_instance, "test/repo", sample_check_info, "CI Build")
 
         # Should not attempt to fetch detailed logs
         mock_tool_instance._arun.assert_not_called()
@@ -440,14 +421,9 @@ class TestGetFailureContext:
     async def test_get_failure_context_logs_fetch_failure(self, mock_github_tool, sample_check_info):
         """Test failure context when log fetching fails."""
         mock_tool_instance = AsyncMock()
-        mock_tool_instance._arun.return_value = {
-            "success": False,
-            "error": "Access denied"
-        }
+        mock_tool_instance._arun.return_value = {"success": False, "error": "Access denied"}
 
-        context = await _get_failure_context(
-            mock_tool_instance, "test/repo", sample_check_info, "CI Build"
-        )
+        context = await _get_failure_context(mock_tool_instance, "test/repo", sample_check_info, "CI Build")
 
         # Should still include basic failure info
         assert "Check: CI Build" in context
@@ -461,9 +437,7 @@ class TestGetFailureContext:
             "status": "failure",
         }
 
-        context = await _get_failure_context(
-            None, "test/repo", minimal_check_info, "Unknown Check"
-        )
+        context = await _get_failure_context(None, "test/repo", minimal_check_info, "Unknown Check")
 
         # Should handle missing fields gracefully
         assert "Check: Unknown Check" in context
@@ -501,9 +475,7 @@ class TestShouldAttemptFixes:
 
     def test_should_attempt_fixes_no_analysis_results(self):
         """Test fix decision with no analysis results."""
-        state = {
-            "analysis_results": []
-        }
+        state = {"analysis_results": []}
 
         result = should_attempt_fixes(state)
         assert result == "wait_for_next_poll"
@@ -539,9 +511,7 @@ class TestAnalyzerIntegration:
         """Test complete analysis workflow from failure to decision."""
         # Setup complex state with multiple failures
         config = RepositoryConfig(
-            owner="test-org",
-            repo="test-repo",
-            claude_context={"language": "python", "framework": "django"}
+            owner="test-org", repo="test-repo", claude_context={"language": "python", "framework": "django"}
         )
 
         state = {
@@ -565,7 +535,7 @@ class TestAnalyzerIntegration:
                         "base_branch": "develop",
                     },
                     "workflow_step": "needs_analysis",
-                }
+                },
             },
             "prioritized_failures": [
                 {
@@ -587,8 +557,8 @@ class TestAnalyzerIntegration:
                         "failure_logs": "3 unit tests failed",
                     },
                     "priority_score": 2.0,
-                }
-            ]
+                },
+            ],
         }
 
         # Mock tools
@@ -605,15 +575,15 @@ class TestAnalyzerIntegration:
                 "analysis": "SQL injection vulnerability in user input handling. Needs parameterized queries.",
                 "fixable": False,  # Security issue needs human review
                 "suggested_actions": ["Review SQL queries", "Implement parameterized queries"],
-                "attempt_id": "security_analysis_1"
+                "attempt_id": "security_analysis_1",
             },
             {
                 "success": True,
                 "analysis": "Unit test failures due to missing mock data. Can be fixed by updating test fixtures.",
                 "fixable": True,  # Test issue is fixable
                 "suggested_actions": ["Update test fixtures", "Add missing mock data"],
-                "attempt_id": "test_analysis_1"
-            }
+                "attempt_id": "test_analysis_1",
+            },
         ]
         mock_claude_instance._arun.side_effect = mock_responses
 
