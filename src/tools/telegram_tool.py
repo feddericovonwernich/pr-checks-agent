@@ -50,7 +50,7 @@ class TelegramTool(BaseTool):
             else:
                 logger.warning("Telegram credentials not found, running in dry-run mode")
         
-        self.bot = Bot(token=self.bot_token) if self.bot_token else None
+        self.bot = Bot(token=self.bot_token) if self.bot_token and not dry_run else None
         
         logger.info(f"Telegram tool initialized (dry_run={dry_run})")
     

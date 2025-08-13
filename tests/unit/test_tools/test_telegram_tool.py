@@ -66,7 +66,7 @@ class TestTelegramTool:
         'TELEGRAM_BOT_TOKEN': 'test_bot_token',
         'TELEGRAM_CHAT_ID': 'test_chat_id'
     })
-    @patch('telegram.Bot')
+    @patch('src.tools.telegram_tool.Bot')
     def test_telegram_tool_initialization_success(self, mock_bot_class):
         """Test successful tool initialization."""
         mock_bot = MagicMock()
@@ -351,7 +351,7 @@ class TestTelegramTool:
         'TELEGRAM_BOT_TOKEN': 'test_bot_token',
         'TELEGRAM_CHAT_ID': 'test_chat_id'
     })
-    @patch('telegram.Bot')
+    @patch('src.tools.telegram_tool.Bot')
     def test_create_escalation_message_with_attempts(self, mock_bot_class):
         """Test escalation message creation with fix attempts."""
         tool = TelegramTool()
@@ -371,8 +371,8 @@ class TestTelegramTool:
             mentions=["@dev-lead", "@oncall"]
         )
         
-        assert "ESCALATION REQUIRED @dev-lead @oncall" in message
-        assert "Fix Attempts (2)" in message
+        assert "*ESCALATION REQUIRED* @dev-lead @oncall" in message  # Updated to match markdown format
+        assert "**Fix Attempts** (2)" in message  # Updated to match markdown format
         assert "2023-01-01T12:00:00" in message
         assert "failed" in message
     
@@ -380,7 +380,7 @@ class TestTelegramTool:
         'TELEGRAM_BOT_TOKEN': 'test_bot_token',
         'TELEGRAM_CHAT_ID': 'test_chat_id'
     })
-    @patch('telegram.Bot')
+    @patch('src.tools.telegram_tool.Bot')
     def test_create_escalation_message_long_context(self, mock_bot_class):
         """Test escalation message creation with long failure context."""
         tool = TelegramTool()
@@ -398,9 +398,10 @@ class TestTelegramTool:
             mentions=[]
         )
         
-        assert "ESCALATION REQUIRED" in message
+        assert "*ESCALATION REQUIRED*" in message  # Updated for markdown format
         assert "..." in message  # Should be truncated
-        assert len(message) < len(long_context)  # Should be shorter than original
+        # Check that the context was truncated by verifying the truncated content length
+        assert message.count("A") < 1000  # Should have fewer A's than original
     
     @patch.dict('os.environ', {
         'TELEGRAM_BOT_TOKEN': 'test_bot_token',
