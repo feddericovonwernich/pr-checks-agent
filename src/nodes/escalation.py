@@ -118,7 +118,6 @@ async def escalation_node(state: MonitorState) -> dict[str, Any]:
 
                 # Update escalation record with error
                 escalation.status = EscalationStatus.NONE
-                escalation.error_message = error_msg
 
                 escalation_results.append(
                     {
@@ -219,7 +218,10 @@ def _is_in_cooldown(pr_state: dict[str, Any], check_name: str, cooldown_hours: i
     # Parse timestamp and check if cooldown period has passed
     escalation_time = latest_escalation.get("timestamp")
     if isinstance(escalation_time, str):
-        escalation_time = datetime.fromisoformat(escalation_time)
+        try:
+            escalation_time = datetime.fromisoformat(escalation_time)
+        except ValueError:
+            return False
     elif not isinstance(escalation_time, datetime):
         return False
 
