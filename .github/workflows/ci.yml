@@ -16,10 +16,10 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     
-    - name: Set up Python 3.13
+    - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
-        python-version: '3.13'
+        python-version: '3.12'
     
     - name: Cache pip dependencies
       uses: actions/cache@v4
@@ -61,10 +61,10 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     
-    - name: Set up Python 3.13
+    - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
-        python-version: '3.13'
+        python-version: '3.12'
     
     - name: Install security tools
       run: |
@@ -161,10 +161,10 @@ jobs:
     steps:
     - uses: actions/checkout@v5
 
-    - name: Set up Python 3.13
+    - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
-        python-version: '3.13'
+        python-version: '3.12'
 
     - name: Cache pip dependencies
       uses: actions/cache@v4
@@ -178,6 +178,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        pip install -r requirements-dev.txt
 
     - name: Create logs directory
       run: mkdir -p logs
@@ -213,10 +214,10 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     
-    - name: Set up Python 3.13
+    - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
-        python-version: '3.13'
+        python-version: '3.12'
     
     - name: Install dependencies
       run: |
@@ -250,10 +251,10 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     
-    - name: Set up Python 3.13
+    - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
-        python-version: '3.13'
+        python-version: '3.12'
     
     - name: Install metrics tools
       run: |
