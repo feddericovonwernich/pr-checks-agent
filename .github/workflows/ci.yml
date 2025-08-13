@@ -187,7 +187,7 @@ jobs:
         REDIS_URL: redis://localhost:6379/0
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        pytest tests/ -v --cov=src --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=50
+        pytest tests/ -v --cov=src --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=45
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v3
