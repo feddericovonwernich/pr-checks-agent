@@ -14,7 +14,7 @@ jobs:
   code-quality:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Set up Python 3.13
       uses: actions/setup-python@v5
@@ -59,7 +59,7 @@ jobs:
     permissions:
       security-events: write
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Set up Python 3.13
       uses: actions/setup-python@v5
@@ -119,7 +119,7 @@ jobs:
   vulnerability-scan:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Run Trivy vulnerability scanner in repo mode
       uses: aquasecurity/trivy-action@master
@@ -159,7 +159,7 @@ jobs:
           --health-retries 5
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: Set up Python 3.13
       uses: actions/setup-python@v5
@@ -211,7 +211,7 @@ jobs:
   dependency-analysis:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Set up Python 3.13
       uses: actions/setup-python@v5
@@ -248,7 +248,7 @@ jobs:
   metrics:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Set up Python 3.13
       uses: actions/setup-python@v5
