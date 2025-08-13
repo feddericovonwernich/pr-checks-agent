@@ -182,7 +182,7 @@ class TestConfig:
             assert config_path.exists()
             assert config_path.parent.exists()
 
-    @patch.dict(os.environ, {"GITHUB_TOKEN": "token", "ANTHROPIC_API_KEY": "key"})
+    @patch.dict(os.environ, {"GITHUB_TOKEN": "token", "ANTHROPIC_API_KEY": "key"}, clear=True)
     def test_validate_environment_partial_success(self, sample_config_data):
         """Test environment validation with some missing variables."""
         config = Config(**sample_config_data)
@@ -192,7 +192,10 @@ class TestConfig:
         assert result["valid"] is False
         assert "TELEGRAM_BOT_TOKEN" in result["missing_vars"]
         assert "TELEGRAM_CHAT_ID" in result["missing_vars"]
-        assert "REDIS_URL not set" in " ".join(result["warnings"])
+
+        # Check for REDIS_URL warning (full warning text includes "using defaults")
+        redis_warnings = [w for w in result["warnings"] if "REDIS_URL not set" in w]
+        assert len(redis_warnings) >= 1
 
     @patch.dict(
         os.environ,
