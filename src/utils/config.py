@@ -172,7 +172,7 @@ def validate_config_file(config_path: str) -> dict[str, Any]:
     """Validate a configuration file without loading it into the application.
     Returns validation results.
     """
-    validation_results = {"valid": True, "errors": [], "warnings": [], "stats": {}}
+    validation_results: dict[str, Any] = {"valid": True, "errors": [], "warnings": [], "stats": {}}
 
     try:
         config = Config.load(config_path)

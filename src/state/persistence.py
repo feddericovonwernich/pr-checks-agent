@@ -130,10 +130,10 @@ class StatePersistence:
         """Get all active PR states for a repository."""
         try:
             pattern = f"pr_state:{repository}:*"
-            keys = self.redis_client.keys(pattern)
+            keys = self.redis_client.keys(pattern)  # type: ignore[misc]
             active_prs: dict[int, PRState] = {}
 
-            for key in keys:
+            for key in keys:  # type: ignore[union-attr]
                 # Extract PR number from key
                 key_str = key.decode() if hasattr(key, "decode") else str(key)  # type: ignore[misc]
                 pr_number = int(key_str.split(":")[-1])
@@ -183,19 +183,20 @@ class StatePersistence:
         try:
             # This is a simple cleanup - in production you might want more sophisticated logic
             pattern = "pr_state:*"
-            keys = self.redis_client.keys(pattern)
+            keys = self.redis_client.keys(pattern)  # type: ignore[misc]
             deleted = 0
 
-            for key in keys:
+            for key in keys:  # type: ignore[union-attr]
                 # Check TTL - if it's close to expiring, let Redis handle it
-                ttl = self.redis_client.ttl(key)
-                if ttl < 86400:  # Less than 1 day remaining
+                ttl = self.redis_client.ttl(key)  # type: ignore[misc]
+                ttl_int = int(ttl) if ttl is not None else 0  # type: ignore[arg-type]
+                if ttl_int < 86400:  # Less than 1 day remaining
                     continue
 
                 # Additional cleanup logic could go here
                 # For now, we rely on Redis TTL
 
-            logger.info(f"Cleanup completed, processed {len(keys)} keys")
+            logger.info(f"Cleanup completed, processed {len(keys)} keys")  # type: ignore[arg-type]
             return deleted
         except Exception as e:
             logger.error(f"Failed to cleanup old states: {e}")
@@ -211,14 +212,14 @@ class StatePersistence:
             self.redis_client.delete(test_key)
 
             # Get Redis info
-            info = self.redis_client.info()
+            info = self.redis_client.info()  # type: ignore[misc]
 
             return {
                 "status": "healthy",
-                "redis_version": info.get("redis_version"),
-                "connected_clients": info.get("connected_clients"),
-                "used_memory_human": info.get("used_memory_human"),
-                "keyspace": info.get("db0", {}),
+                "redis_version": info.get("redis_version"),  # type: ignore[union-attr]
+                "connected_clients": info.get("connected_clients"),  # type: ignore[union-attr]
+                "used_memory_human": info.get("used_memory_human"),  # type: ignore[union-attr]
+                "keyspace": info.get("db0", {}),  # type: ignore[union-attr]
             }
         except Exception as e:
             return {"status": "unhealthy", "error": str(e)}

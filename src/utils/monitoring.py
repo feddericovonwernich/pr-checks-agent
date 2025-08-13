@@ -21,6 +21,7 @@ class RepositoryStats(TypedDict, total=False):
     fixes_successful: int
     escalations: int
     errors: int
+    last_updated: str
 
 
 class MonitoringStats(TypedDict):
@@ -278,11 +279,12 @@ class MonitoringServer:
 
     def update_repository_stats(self, repository: str, stats: dict[str, Any]) -> None:
         """Update statistics for a repository."""
-        self.stats["repositories"][repository] = {
-            **self.stats["repositories"].get(repository, {}),
-            **stats,
-            "last_updated": datetime.now().isoformat(),
-        }
+        existing_stats = self.stats["repositories"].get(repository, {})
+        # Use dict[str, Any] instead of TypedDict to avoid strict typing issues
+        updated_stats: dict[str, Any] = dict(existing_stats)
+        updated_stats.update(stats)
+        updated_stats["last_updated"] = datetime.now().isoformat()
+        self.stats["repositories"][repository] = updated_stats  # type: ignore[assignment]
 
     def add_event(self, event_type: str, message: str, **metadata: Any) -> None:
         """Add an event to the recent events list."""

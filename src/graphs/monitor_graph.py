@@ -100,7 +100,7 @@ def create_monitor_graph(config, max_concurrent: int = 10, enable_tracing: bool 
     compiled_graph = graph.compile()
 
     logger.info("Monitoring graph created successfully")
-    return compiled_graph
+    return compiled_graph  # type: ignore[return-value]
 
 
 async def _wait_for_next_poll(state: MonitorState) -> dict[str, Any]:
@@ -216,7 +216,7 @@ async def run_monitoring_workflow(
 
     try:
         # Run the workflow
-        async for event in graph.astream(initial_state):
+        async for event in graph.astream(initial_state):  # type: ignore[attr-defined]
             # Log significant events
             if "error" in event:
                 logger.error(f"Workflow error in {repository}: {event['error']}")

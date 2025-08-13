@@ -84,7 +84,7 @@ def setup_logging(level: str = "INFO", dev_mode: bool = False, log_file: str | N
 def _json_formatter(record: loguru.Record) -> str:
     """Custom JSON formatter for structured logging."""
     # Extract basic record information
-    log_entry = {
+    log_entry: dict[str, Any] = {
         "timestamp": record["time"].isoformat(),
         "level": record["level"].name,
         "logger": record["name"],
@@ -144,7 +144,7 @@ def get_workflow_logger(
     repository: str, pr_number: int | None = None, check_name: str | None = None, workflow_id: str | None = None
 ) -> ContextualLogger:
     """Get a contextual logger for workflow operations."""
-    context = {"repository": repository, "component": "workflow"}
+    context: dict[str, Any] = {"repository": repository, "component": "workflow"}
 
     if pr_number is not None:
         context["pr_number"] = pr_number
