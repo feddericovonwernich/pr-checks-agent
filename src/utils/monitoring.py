@@ -3,11 +3,31 @@ Implements metrics collection, health checks, and web dashboard
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, List, TypedDict
 
 from aiohttp import web
 from loguru import logger
 from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, Gauge, Histogram, generate_latest
+
+
+class RepositoryStats(TypedDict, total=False):
+    """Type definition for repository statistics."""
+    active_prs: int
+    last_scan: datetime
+    total_checks: int
+    failed_checks: int
+    fixes_attempted: int
+    fixes_successful: int
+    escalations: int
+    errors: int
+
+
+class MonitoringStats(TypedDict):
+    """Type definition for monitoring statistics."""
+    start_time: datetime
+    repositories: Dict[str, RepositoryStats]
+    recent_events: List[Dict[str, Any]]
+    health_status: str
 
 # Prometheus metrics
 REGISTRY = CollectorRegistry()
@@ -57,9 +77,14 @@ class MonitoringServer:
         self.setup_routes()
 
         # In-memory stats for dashboard
-        self.stats = {"start_time": datetime.now(), "repositories": {}, "recent_events": [], "health_status": "healthy"}
+        self.stats: MonitoringStats = {
+            "start_time": datetime.now(), 
+            "repositories": {}, 
+            "recent_events": [], 
+            "health_status": "healthy"
+        }
 
-    def setup_routes(self):
+    def setup_routes(self) -> None:
         """Setup HTTP routes."""
         # Health check endpoint
         self.app.router.add_get("/health", self.health_check)
@@ -248,7 +273,7 @@ class MonitoringServer:
 
         return html
 
-    def update_repository_stats(self, repository: str, stats: dict[str, Any]):
+    def update_repository_stats(self, repository: str, stats: dict[str, Any]) -> None:
         """Update statistics for a repository."""
         self.stats["repositories"][repository] = {
             **self.stats["repositories"].get(repository, {}),
@@ -256,7 +281,7 @@ class MonitoringServer:
             "last_updated": datetime.now().isoformat(),
         }
 
-    def add_event(self, event_type: str, message: str, **metadata):
+    def add_event(self, event_type: str, message: str, **metadata: Any) -> None:
         """Add an event to the recent events list."""
         event = {"timestamp": datetime.now().isoformat(), "type": event_type, "message": message, **metadata}
 
@@ -266,11 +291,11 @@ class MonitoringServer:
         if len(self.stats["recent_events"]) > 1000:
             self.stats["recent_events"] = self.stats["recent_events"][-1000:]
 
-    def set_health_status(self, status: str):
+    def set_health_status(self, status: str) -> None:
         """Set overall health status."""
         self.stats["health_status"] = status
 
-    async def start(self):
+    async def start(self) -> None:
         """Start the monitoring server."""
         runner = web.AppRunner(self.app)
         await runner.setup()
@@ -311,18 +336,18 @@ def get_monitoring_server() -> MonitoringServer:
 # Metric recording functions
 
 
-def record_scan(repository: str, success: bool):
+def record_scan(repository: str, success: bool) -> None:
     """Record a repository scan."""
     status = "success" if success else "error"
     PR_SCANS_TOTAL.labels(repository=repository, status=status).inc()
 
 
-def record_check_monitored(repository: str, check_type: str, status: str):
+def record_check_monitored(repository: str, check_type: str, status: str) -> None:
     """Record a check being monitored."""
     CHECKS_MONITORED_TOTAL.labels(repository=repository, check_type=check_type, status=status).inc()
 
 
-def record_fix_attempt(repository: str, check_type: str, success: bool, duration: float):
+def record_fix_attempt(repository: str, check_type: str, success: bool, duration: float) -> None:
     """Record a fix attempt."""
     success_label = "success" if success else "failure"
     FIX_ATTEMPTS_TOTAL.labels(repository=repository, check_type=check_type, success=success_label).inc()
@@ -330,23 +355,23 @@ def record_fix_attempt(repository: str, check_type: str, success: bool, duration
     FIX_DURATION_SECONDS.labels(repository=repository, check_type=check_type).observe(duration)
 
 
-def record_escalation(repository: str, reason: str, success: bool):
+def record_escalation(repository: str, reason: str, success: bool) -> None:
     """Record an escalation."""
     success_label = "success" if success else "failure"
     ESCALATIONS_TOTAL.labels(repository=repository, reason=reason, success=success_label).inc()
 
 
-def record_github_api_call(operation: str, success: bool, duration: float):
+def record_github_api_call(operation: str, success: bool, duration: float) -> None:
     """Record a GitHub API call."""
     status = "success" if success else "error"
     GITHUB_API_DURATION_SECONDS.labels(operation=operation, status=status).observe(duration)
 
 
-def set_active_prs(repository: str, count: int):
+def set_active_prs(repository: str, count: int) -> None:
     """Set the number of active PRs for a repository."""
     ACTIVE_PRS.labels(repository=repository).set(count)
 
 
-def set_workflow_errors(repository: str, count: int):
+def set_workflow_errors(repository: str, count: int) -> None:
     """Set the number of consecutive workflow errors."""
     WORKFLOW_ERRORS.labels(repository=repository).set(count)

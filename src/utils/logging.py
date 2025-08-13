@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import loguru
 from loguru import logger
 
 
@@ -80,7 +81,7 @@ def setup_logging(level: str = "INFO", dev_mode: bool = False, log_file: str | N
     logger.info(f"Development mode: {dev_mode}")
 
 
-def _json_formatter(record: "loguru.Record") -> str:
+def _json_formatter(record: loguru.Record) -> str:
     """Custom JSON formatter for structured logging."""
     # Extract basic record information
     log_entry = {
@@ -117,19 +118,19 @@ class ContextualLogger:
         self.context = context
         self.logger = logger.bind(**context)
 
-    def debug(self, message: str, **kwargs) -> None:
+    def debug(self, message: str, **kwargs: Any) -> None:
         self.logger.debug(message, **kwargs)
 
-    def info(self, message: str, **kwargs) -> None:
+    def info(self, message: str, **kwargs: Any) -> None:
         self.logger.info(message, **kwargs)
 
-    def warning(self, message: str, **kwargs) -> None:
+    def warning(self, message: str, **kwargs: Any) -> None:
         self.logger.warning(message, **kwargs)
 
-    def error(self, message: str, **kwargs) -> None:
+    def error(self, message: str, **kwargs: Any) -> None:
         self.logger.error(message, **kwargs)
 
-    def exception(self, message: str, **kwargs) -> None:
+    def exception(self, message: str, **kwargs: Any) -> None:
         self.logger.exception(message, **kwargs)
 
     def with_context(self, **additional_context) -> "ContextualLogger":
@@ -144,7 +145,7 @@ def get_workflow_logger(
     """Get a contextual logger for workflow operations."""
     context = {"repository": repository, "component": "workflow"}
 
-    if pr_number:
+    if pr_number is not None:
         context["pr_number"] = pr_number
 
     if check_name:
@@ -156,7 +157,7 @@ def get_workflow_logger(
     return ContextualLogger(context)
 
 
-def get_tool_logger(tool_name: str, **context) -> ContextualLogger:
+def get_tool_logger(tool_name: str, **context: Any) -> ContextualLogger:
     """Get a contextual logger for tool operations."""
     base_context = {"component": "tool", "tool_name": tool_name}
     base_context.update(context)
@@ -171,7 +172,7 @@ def log_api_call(
     success: bool,
     status_code: int | None = None,
     error: str | None = None,
-    **context,
+    **context: Any,
 ) -> None:
     """Log API call with standardized format."""
     log_data = {
@@ -196,7 +197,7 @@ def log_api_call(
 
 
 def log_workflow_event(
-    event_type: str, repository: str, pr_number: int | None = None, details: dict[str, Any] | None = None, **context
+    event_type: str, repository: str, pr_number: int | None = None, details: dict[str, Any] | None = None, **context: Any
 ) -> None:
     """Log workflow event with standardized format."""
     log_data = {"event_type": event_type, "repository": repository, "component": "workflow_event", **context}

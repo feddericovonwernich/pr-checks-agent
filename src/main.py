@@ -5,6 +5,7 @@ LangGraph-powered GitHub PR monitoring and fixing agent
 
 import asyncio
 import sys
+from typing import Any
 
 import click
 import uvloop
@@ -152,7 +153,10 @@ async def async_main(
 
     try:
         # Wait for all tasks to complete (they should run indefinitely)
-        await asyncio.gather(*tasks, monitoring_task, return_exceptions=True)
+        tasks_to_wait = [task for task in tasks if task is not None]
+        if monitoring_task is not None:
+            tasks_to_wait.append(monitoring_task)
+        await asyncio.gather(*tasks_to_wait, return_exceptions=True)
     except Exception as e:
         logger.error(f"Error in main workflow: {e}")
         raise
@@ -167,11 +171,14 @@ async def async_main(
             monitoring_task.cancel()
 
         # Wait for tasks to finish
-        await asyncio.gather(*tasks, monitoring_task, return_exceptions=True)
+        cleanup_tasks = [task for task in tasks if task is not None]
+        if monitoring_task is not None:
+            cleanup_tasks.append(monitoring_task)
+        await asyncio.gather(*cleanup_tasks, return_exceptions=True)
         logger.info("Shutdown complete")
 
 
-async def run_repository_workflow(graph, initial_state: dict, repo_config) -> None:
+async def run_repository_workflow(graph: Any, initial_state: dict[str, Any], repo_config: Any) -> None:
     """Run the monitoring workflow for a specific repository."""
     repository = f"{repo_config.owner}/{repo_config.repo}"
     logger.info(f"Starting workflow for repository: {repository}")
