@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-import loguru
 from loguru import logger
 
 
@@ -81,7 +80,7 @@ def setup_logging(level: str = "INFO", dev_mode: bool = False, log_file: str | N
     logger.info(f"Development mode: {dev_mode}")
 
 
-def _json_formatter(record: loguru.Record) -> str:
+def _json_formatter(record) -> str:  # type: ignore[no-untyped-def]
     """Custom JSON formatter for structured logging."""
     # Extract basic record information
     log_entry: dict[str, Any] = {
