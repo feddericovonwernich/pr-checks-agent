@@ -54,7 +54,8 @@ class StatePersistence:
         if isinstance(obj, datetime):
             return obj.isoformat()
         if isinstance(obj, BaseModel):
-            return obj.dict()
+            # Recursively apply serialization to the model's dict representation
+            return self._make_serializable(obj.dict())
         if isinstance(obj, dict):
             return {k: self._make_serializable(v) for k, v in obj.items()}
         if isinstance(obj, list):
