@@ -64,7 +64,7 @@ This agent uses **LangGraph** to implement sophisticated workflows for:
 
 ### System Architecture
 
-![Architecture Diagram](./architecture.png)
+![Architecture Diagram](./docs/diagrams/architecture.png)
 
 The system is built around a **LangGraph workflow** that coordinates between multiple components:
 - **External Services**: GitHub API, Claude Code CLI, Telegram Bot API, Redis
@@ -74,7 +74,7 @@ The system is built around a **LangGraph workflow** that coordinates between mul
 
 ### Workflow State Machine
 
-![Workflow Diagram](./workflow.png)
+![Workflow Diagram](./docs/diagrams/workflow.png)
 
 The workflow implements a state machine with these key transitions:
 1. **Repository Scanning** → Discovers PRs and check status changes
@@ -218,6 +218,7 @@ python src/main.py --trace --dashboard
 ## 📚 Documentation
 
 - [`CLAUDE.md`](./CLAUDE.md) - Detailed technical documentation and architecture
+- [`docs/diagrams/`](./docs/diagrams/) - Architecture diagrams and PlantUML sources
 - [GitHub Issues](https://github.com/feddericovonwernich/pr-checks-agent/issues) - Issue tracking and support
 
 ## 🤝 Contributing
