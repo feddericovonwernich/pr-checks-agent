@@ -1,6 +1,7 @@
 """Pytest configuration and fixtures for PR Check Agent tests"""
 
 import os
+
 # Add src to Python path for imports
 import sys
 import tempfile

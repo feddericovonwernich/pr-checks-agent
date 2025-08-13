@@ -12,8 +12,7 @@ from loguru import logger
 from nodes.analyzer import failure_analyzer_node, should_attempt_fixes
 from nodes.escalation import escalation_node, should_continue_after_escalation
 from nodes.invoker import claude_invoker_node, should_retry_or_escalate
-from nodes.monitor import (check_monitor_node, prioritize_failures,
-                           should_analyze_failures)
+from nodes.monitor import check_monitor_node, prioritize_failures, should_analyze_failures
 from nodes.scanner import repository_scanner_node, should_continue_scanning
 from state.schemas import MonitorState
 

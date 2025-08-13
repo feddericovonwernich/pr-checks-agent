@@ -7,9 +7,14 @@ from unittest.mock import patch
 
 import pytest
 
-from src.utils.config import (Config, GlobalLimits, RepositoryConfig,
-                              create_default_config, load_environment_config,
-                              validate_config_file)
+from src.utils.config import (
+    Config,
+    GlobalLimits,
+    RepositoryConfig,
+    create_default_config,
+    load_environment_config,
+    validate_config_file,
+)
 
 
 class TestRepositoryConfig:
