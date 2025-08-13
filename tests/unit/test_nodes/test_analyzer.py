@@ -84,12 +84,20 @@ class TestFailureAnalyzerNode:
         assert result == base_state
 
     @patch("src.nodes.analyzer.GitHubTool")
-    @patch("src.nodes.analyzer.ClaudeCodeTool")
+    @patch("src.nodes.analyzer.LLMService")
     @pytest.mark.asyncio
     async def test_failure_analyzer_node_successful_analysis(
-        self, mock_claude_tool, mock_github_tool, base_state, sample_pr_state, sample_prioritized_failure
+        self, mock_llm_service, mock_github_tool, base_state, sample_pr_state, sample_prioritized_failure
     ):
         """Test successful failure analysis."""
+        # Add LLM config to the base state's config
+        base_state["config"].llm = type('LLMConfig', (), {
+            'provider': 'openai',
+            'model': 'gpt-4',
+            'effective_api_key': 'test-key',
+            'base_url': None
+        })()
+        
         base_state["active_prs"] = {123: sample_pr_state}
         base_state["prioritized_failures"] = [sample_prioritized_failure]
 
@@ -97,22 +105,25 @@ class TestFailureAnalyzerNode:
         mock_github_instance = AsyncMock()
         mock_github_tool.return_value = mock_github_instance
 
-        # Mock Claude Code tool
-        mock_claude_instance = AsyncMock()
-        mock_claude_tool.return_value = mock_claude_instance
-        mock_claude_instance._arun.return_value = {
+        # Mock LLM service
+        mock_llm_instance = AsyncMock()
+        mock_llm_service.return_value = mock_llm_instance
+        mock_llm_instance.analyze_failure.return_value = {
             "success": True,
             "analysis": "The build failed due to a syntax error in main.py at line 42. Missing colon after if statement.",
             "fixable": True,
-            "suggested_actions": ["Add missing colon after if statement on line 42", "Run syntax check to verify fix"],
-            "attempt_id": "attempt_123",
+            "suggested_fix": "Add missing colon after if statement on line 42",
+            "confidence": 0.9,
+            "severity": "medium",
+            "category": "syntax_error",
+            "llm_provider": "openai",
+            "llm_model": "gpt-4"
         }
 
         result = await failure_analyzer_node(base_state)
 
-        # Verify Claude tool was called correctly
-        mock_claude_instance._arun.assert_called_once_with(
-            operation="analyze_failure",
+        # Verify LLM service was called correctly
+        mock_llm_instance.analyze_failure.assert_called_once_with(
             failure_context=ANY,  # Will be built by _get_failure_context
             check_name="CI",
             pr_info=sample_pr_state["pr_info"],
