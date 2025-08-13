@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import httpx
 import pytest
+import pytest_asyncio
 from testcontainers.core.container import DockerContainer
 from testcontainers.redis import RedisContainer
 
@@ -23,7 +24,7 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop]:
     loop.close()
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 async def redis_container() -> AsyncGenerator[RedisContainer]:
     """Start a Redis container for state persistence testing."""
     with RedisContainer("redis:7-alpine") as redis:
@@ -31,17 +32,16 @@ async def redis_container() -> AsyncGenerator[RedisContainer]:
         yield redis
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 async def wiremock_container() -> AsyncGenerator[DockerContainer]:
     """Start a WireMock container for GitHub API mocking."""
     with DockerContainer("wiremock/wiremock:latest") as wiremock:
         wiremock.with_exposed_ports(8080)
-        wiremock.with_command("--port", "8080", "--verbose")
         wiremock.start()
         yield wiremock
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 async def claude_mock_server() -> AsyncGenerator[DockerContainer]:
     """Start a simple HTTP server for Claude API mocking."""
     # Use httpbin for simple HTTP mocking
@@ -51,7 +51,7 @@ async def claude_mock_server() -> AsyncGenerator[DockerContainer]:
         yield httpbin
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 async def telegram_mock_server() -> AsyncGenerator[DockerContainer]:
     """Start a simple HTTP server for Telegram Bot API mocking."""
     # Use httpbin for simple HTTP mocking
@@ -61,10 +61,14 @@ async def telegram_mock_server() -> AsyncGenerator[DockerContainer]:
         yield httpbin
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def redis_client(redis_container: RedisContainer) -> AsyncGenerator[StatePersistence]:
     """Create a Redis client connected to the test container."""
-    redis_url = redis_container.get_connection_url()
+    # Construct Redis URL from container details
+    host = redis_container.get_container_host_ip()
+    port = redis_container.get_exposed_port(6379)
+    redis_url = f"redis://{host}:{port}/0"
+    
     persistence = StatePersistence(redis_url=redis_url)
     yield persistence
     # Cleanup: flush the database
@@ -72,7 +76,7 @@ async def redis_client(redis_container: RedisContainer) -> AsyncGenerator[StateP
     persistence.redis_client.close()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def github_api_mock(wiremock_container: DockerContainer) -> AsyncGenerator[str]:
     """Setup GitHub API mocking with WireMock."""
     base_url = f"http://{wiremock_container.get_container_host_ip()}:{wiremock_container.get_exposed_port(8080)}"
@@ -120,7 +124,7 @@ async def github_api_mock(wiremock_container: DockerContainer) -> AsyncGenerator
     yield base_url
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def claude_api_mock(claude_mock_server: DockerContainer) -> AsyncGenerator[str]:
     """Setup Claude API mocking."""
     base_url = f"http://{claude_mock_server.get_container_host_ip()}:{claude_mock_server.get_exposed_port(80)}"
@@ -134,7 +138,7 @@ async def claude_api_mock(claude_mock_server: DockerContainer) -> AsyncGenerator
     yield base_url
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def telegram_api_mock(telegram_mock_server: DockerContainer) -> AsyncGenerator[str]:
     """Setup Telegram Bot API mocking."""
     base_url = f"http://{telegram_mock_server.get_container_host_ip()}:{telegram_mock_server.get_exposed_port(80)}"
@@ -178,7 +182,7 @@ def mock_environment_vars():
         yield env_vars
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def integration_test_setup(
     redis_client: StatePersistence,
     github_api_mock: str,
