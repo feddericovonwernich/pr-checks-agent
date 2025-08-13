@@ -300,9 +300,7 @@ class TestEscalationWorkflow:
         """Set up Telegram API mock for escalation messages."""
         # Telegram mocking is handled by the mock in the test
 
-    async def _verify_escalation_persistence(
-        self, redis_client: "StatePersistence", repository: str, pr_number: int
-    ):
+    async def _verify_escalation_persistence(self, redis_client: "StatePersistence", repository: str, pr_number: int):
         """Verify escalation state is properly persisted."""
         escalation_key = f"escalation:{repository}:pr:{pr_number}"
         escalation_exists = redis_client.redis_client.exists(escalation_key)
@@ -316,9 +314,7 @@ class TestEscalationWorkflow:
             escalation_data = pickle.loads(raw_data)  # noqa: S301
             assert escalation_data.get("status") in ["pending", "notified"]
 
-    async def _simulate_human_acknowledgment(
-        self, redis_client: "StatePersistence", repository: str, pr_number: int
-    ):
+    async def _simulate_human_acknowledgment(self, redis_client: "StatePersistence", repository: str, pr_number: int):
         """Simulate human acknowledgment of an escalation."""
         escalation_key = f"escalation:{repository}:pr:{pr_number}"
         acknowledgment_data = {
@@ -333,9 +329,7 @@ class TestEscalationWorkflow:
         serialized_data = pickle.dumps(acknowledgment_data)
         redis_client.redis_client.set(escalation_key, serialized_data, ex=3600)
 
-    async def _verify_human_acknowledgment_recorded(
-        self, redis_client: "StatePersistence", repository: str, pr_number: int
-    ):
+    async def _verify_human_acknowledgment_recorded(self, redis_client: "StatePersistence", repository: str, pr_number: int):
         """Verify human acknowledgment was properly recorded."""
         escalation_key = f"escalation:{repository}:pr:{pr_number}"
         # Use Redis client directly to get the key
