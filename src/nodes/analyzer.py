@@ -10,6 +10,7 @@ from loguru import logger
 from services.llm_provider import LLMService
 from state.schemas import MonitorState
 from tools.github_tool import GitHubTool
+from utils.config import load_environment_config
 
 
 async def failure_analyzer_node(state: MonitorState) -> dict[str, Any]:
@@ -34,12 +35,8 @@ async def failure_analyzer_node(state: MonitorState) -> dict[str, Any]:
     github_tool = GitHubTool()
 
     # Initialize LLM service for decision-making
-    llm_config = {
-        "provider": config.llm.provider,
-        "model": config.llm.model,
-        "api_key": config.llm.effective_api_key,
-        "base_url": config.llm.base_url,
-    }
+    env_config = load_environment_config()
+    llm_config = env_config.get("llm", {})
     llm_service = LLMService(llm_config)
 
     updated_prs = dict(state.get("active_prs", {}))
