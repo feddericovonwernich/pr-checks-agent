@@ -289,13 +289,13 @@ class TestMonitoringServerEndpoints(AioHTTPTestCase):
         server.set_health_status("unhealthy")
 
         # Test using proper aiohttp testing approach
-        from aiohttp.test_utils import TestServer, TestClient
-        
+        from aiohttp.test_utils import TestClient, TestServer
+
         test_server = TestServer(server.app)
         async with TestClient(test_server) as client:
             resp = await client.get("/health")
             assert resp.status == 503
-            
+
             data = await resp.json()
             assert data["status"] == "unhealthy"
 
@@ -380,12 +380,12 @@ class TestMonitoringServerEndpoints(AioHTTPTestCase):
 
     async def test_dashboard_disabled(self):
         """Test dashboard when disabled."""
-        # Create server with dashboard disabled  
+        # Create server with dashboard disabled
         server = MonitoringServer(port=8080, enable_dashboard=False)
-        
+
         # Test using proper aiohttp testing approach
-        from aiohttp.test_utils import TestServer, TestClient
-        
+        from aiohttp.test_utils import TestClient, TestServer
+
         test_server = TestServer(server.app)
         async with TestClient(test_server) as client:
             # This should return 404 since no /dashboard route is registered
