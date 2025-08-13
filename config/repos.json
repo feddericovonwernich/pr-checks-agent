@@ -1,0 +1,49 @@
+{
+  "repositories": [
+    {
+      "owner": "example-org",
+      "repo": "example-repo",
+      "branch_filter": ["main", "develop"],
+      "check_types": ["ci", "tests", "linting"],
+      "claude_context": {
+        "project_type": "nodejs",
+        "test_framework": "jest",
+        "linting": "eslint"
+      },
+      "fix_limits": {
+        "max_attempts": 3,
+        "cooldown_hours": 6,
+        "escalation_enabled": true
+      },
+      "priorities": {
+        "check_types": {
+          "security": 1,
+          "tests": 2,
+          "linting": 3,
+          "ci": 4
+        },
+        "branch_priority": {
+          "main": 1,
+          "develop": 2,
+          "feature/*": 3
+        }
+      },
+      "notifications": {
+        "telegram_channel": "@repo-alerts",
+        "escalation_mentions": ["@dev-lead", "@oncall"]
+      }
+    }
+  ],
+  "global_limits": {
+    "max_daily_fixes": 50,
+    "max_concurrent_fixes": 5,
+    "rate_limits": {
+      "github_api_calls_per_hour": 4000,
+      "claude_invocations_per_hour": 100
+    },
+    "resource_limits": {
+      "max_workflow_memory_mb": 512,
+      "max_log_retention_days": 30
+    }
+  }
+}
