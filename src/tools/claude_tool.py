@@ -29,9 +29,9 @@ class ClaudeCodeInput(BaseModel):
 class ClaudeCodeTool(BaseTool):
     """LangGraph tool for Claude Code CLI operations."""
     
-    name = "claude_code"
-    description = "Invoke Claude Code CLI to analyze and fix code issues"
-    args_schema = ClaudeCodeInput
+    name: str = "claude_code"
+    description: str = "Invoke Claude Code CLI to analyze and fix code issues"
+    args_schema: type = ClaudeCodeInput
     
     def __init__(self, dry_run: bool = False):
         super().__init__()

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any
 
 from langchain_core.runnables import RunnableConfig
-from langgraph import StateGraph, START, END
+from langgraph.graph import StateGraph, START, END
 from loguru import logger
 
 from state.schemas import MonitorState

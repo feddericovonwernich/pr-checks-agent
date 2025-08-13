@@ -11,7 +11,7 @@ PyGithub>=2.3.0
 python-telegram-bot>=21.0.0
 
 # Data validation and models
-pydantic>=2.5.0
+pydantic>=2.8.0
 
 # Environment and configuration
 python-dotenv>=1.0.0

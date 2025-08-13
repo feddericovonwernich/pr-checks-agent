@@ -30,9 +30,9 @@ class GitHubAPIInput(BaseModel):
 class GitHubTool(BaseTool):
     """LangGraph tool for GitHub API operations."""
     
-    name = "github_api"
-    description = "Interact with GitHub API to get PR and check information"
-    args_schema = GitHubAPIInput
+    name: str = "github_api"
+    description: str = "Interact with GitHub API to get PR and check information"
+    args_schema: type = GitHubAPIInput
     
     def __init__(self):
         super().__init__()

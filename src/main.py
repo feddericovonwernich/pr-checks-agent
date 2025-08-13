@@ -42,9 +42,7 @@ from graphs.monitor_graph import create_monitor_graph
 )
 @click.option("--trace", is_flag=True, help="Enable workflow tracing")
 @click.option("--dashboard", is_flag=True, help="Enable web dashboard")
-@click.option(
-    "--metrics-port", default=8080, help="Port for metrics and dashboard", type=int
-)
+@click.option("--metrics-port", default=8080, help="Port for metrics and dashboard", type=int)
 @click.option("--dry-run", is_flag=True, help="Run in dry-run mode (no actual fixes)")
 @click.option("--dev", is_flag=True, help="Development mode with additional logging")
 @click.version_option(version="0.1.0")

@@ -30,9 +30,9 @@ class TelegramInput(BaseModel):
 class TelegramTool(BaseTool):
     """LangGraph tool for Telegram notifications."""
     
-    name = "telegram_notify"
-    description = "Send notifications and escalations via Telegram"
-    args_schema = TelegramInput
+    name: str = "telegram_notify"
+    description: str = "Send notifications and escalations via Telegram"
+    args_schema: type = TelegramInput
     
     def __init__(self, dry_run: bool = False):
         super().__init__()
