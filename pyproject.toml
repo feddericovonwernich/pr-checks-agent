@@ -14,6 +14,37 @@ dependencies = [
 ]
 
 [tool.ruff]
+line-length = 127
+target-version = "py313"
+
+# Exclude a variety of commonly ignored directories
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    "logs",
+    "htmlcov",
+]
+
+[tool.ruff.lint]
 # Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default
 select = [
     "E",  # pycodestyle errors
@@ -78,45 +109,33 @@ ignore = [
     "D103", # Missing docstring in public function
     "D104", # Missing docstring in public package
     "D105", # Missing docstring in magic method
-    "ANN101", # Missing type annotation for self in method
-    "ANN102", # Missing type annotation for cls in classmethod
     "COM812", # Trailing comma missing (conflicts with formatter)
     "ISC001", # Implicitly concatenated string literals (conflicts with formatter)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "S101",   # Use of assert (for tests)
+    "ANN201", # Missing return type annotation for public function
+    "ANN001", # Missing type annotation for function argument
+    "ANN202", # Missing return type annotation for private function
+    "PLR2004", # Magic value used in comparison
+    "INP001", # Implicit namespace package
+    "ARG001", # Unused function argument (test helpers)
+    "ARG002", # Unused method argument
+    "ARG005", # Unused lambda argument
+    "SLF001", # Private member accessed (testing private methods)
+    "S105",   # Possible hardcoded password (test tokens)
+    "S108",   # Probable insecure usage of temp file (tests)
+    "SIM117", # Use single with statement (readability preference in tests)
+    "DTZ001", # datetime() without tzinfo (tests don't need timezone)
+    "DTZ005", # datetime.now() without tz (tests don't need timezone)
+    "F841",   # Local variable assigned but never used (test fixtures)
 ]
 
 # Allow fix for all enabled rules (when `--fix`) is provided
 fixable = ["ALL"]
 unfixable = []
-
-# Exclude a variety of commonly ignored directories
-exclude = [
-    ".bzr",
-    ".direnv",
-    ".eggs",
-    ".git",
-    ".git-rewrite",
-    ".hg",
-    ".mypy_cache",
-    ".nox",
-    ".pants.d",
-    ".pytype",
-    ".ruff_cache",
-    ".svn",
-    ".tox",
-    ".venv",
-    "__pypackages__",
-    "_build",
-    "buck-out",
-    "build",
-    "dist",
-    "node_modules",
-    "venv",
-    "logs",
-    "htmlcov",
-]
-
-line-length = 127
-target-version = "py313"
 
 [tool.ruff.format]
 # Like Black, use double quotes for strings
