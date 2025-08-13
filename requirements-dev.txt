@@ -5,6 +5,12 @@ pytest-cov>=4.1.0
 pytest-mock>=3.11.0
 pytest-benchmark>=4.0.0
 
+# Integration Testing
+testcontainers>=4.0.0
+testcontainers-redis>=1.0.0
+httpx>=0.25.0
+wiremock>=2.6.0
+
 # Code Quality and Linting
 ruff>=0.1.0
 mypy>=1.7.0
