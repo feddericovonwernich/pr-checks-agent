@@ -126,7 +126,7 @@ class MonitoringServer:
         """Prometheus metrics endpoint."""
         metrics_output = generate_latest(REGISTRY).decode("utf-8")
 
-        return web.Response(text=metrics_output, content_type=CONTENT_TYPE_LATEST)
+        return web.Response(text=metrics_output, content_type="text/plain")
 
     async def api_stats(self, request: web.Request) -> web.Response:
         """API endpoint for general statistics."""
