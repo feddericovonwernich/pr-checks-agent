@@ -192,7 +192,7 @@ class AnthropicProvider(BaseLLMProvider):
             }
             if system_message:
                 create_kwargs["system"] = system_message
-            
+
             response = await client.messages.create(**create_kwargs)
 
             usage = {}
@@ -207,11 +207,8 @@ class AnthropicProvider(BaseLLMProvider):
             content_text = ""
             if response.content and len(response.content) > 0:
                 first_block = response.content[0]
-                if hasattr(first_block, 'text'):
-                    content_text = first_block.text  # type: ignore[attr-defined]
-                else:
-                    content_text = str(first_block)
-            
+                content_text = first_block.text if hasattr(first_block, "text") else str(first_block)  # type: ignore[attr-defined]
+
             return LLMResponse(content=content_text, provider=self.provider_name, model=self.model, usage=usage)
 
         except Exception as e:
