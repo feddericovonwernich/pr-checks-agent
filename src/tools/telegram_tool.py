@@ -132,7 +132,7 @@ class TelegramTool(BaseTool):
         try:
             if self.bot is None or self.chat_id is None:
                 return {"success": False, "error": "Bot or chat_id not configured"}
-            
+
             # Send message
             sent_message = await self.bot.send_message(
                 chat_id=self.chat_id, text=message, parse_mode="Markdown", reply_markup=keyboard, disable_web_page_preview=True
@@ -170,7 +170,7 @@ _Automated update from PR Check Agent_
         try:
             if self.bot is None or self.chat_id is None:
                 return {"success": False, "error": "Bot or chat_id not configured"}
-                
+
             await self.bot.send_message(chat_id=self.chat_id, text=message, parse_mode="Markdown")
 
             return {"success": True, "message": "Status update sent"}
@@ -207,7 +207,7 @@ _Automated summary from PR Check Agent_
         try:
             if self.bot is None or self.chat_id is None:
                 return {"success": False, "error": "Bot or chat_id not configured"}
-                
+
             await self.bot.send_message(chat_id=self.chat_id, text=message, parse_mode="Markdown")
 
             return {"success": True, "message": "Daily summary sent"}
