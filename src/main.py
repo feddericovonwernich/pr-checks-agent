@@ -12,7 +12,7 @@ import uvloop
 from dotenv import load_dotenv
 from loguru import logger
 
-from graphs.monitor_graph import create_monitor_graph
+from graphs.monitor_graph import create_monitor_graph, create_initial_state
 from utils.config import Config
 from utils.logging import setup_logging
 from utils.monitoring import start_monitoring_server
@@ -137,13 +137,15 @@ async def async_main(
     for repo_config in config.repositories:
         logger.info(f"Starting monitoring for {repo_config.owner}/{repo_config.repo}")
 
-        # Create initial workflow state
-        initial_state = {
-            "repository": f"{repo_config.owner}/{repo_config.repo}",
-            "config": repo_config,
-            "active_prs": {},
-            "workflow_semaphore": workflow_semaphore,
-        }
+        # Create initial workflow state using the proper initialization function
+        initial_state = create_initial_state(
+            repository=f"{repo_config.owner}/{repo_config.repo}",
+            config=repo_config,
+            polling_interval=300,  # 5 minutes default
+            workflow_semaphore=workflow_semaphore,
+        )
+        # Add dry_run flag
+        initial_state["dry_run"] = dry_run
 
         # Start monitoring workflow for this repository
         task = asyncio.create_task(run_repository_workflow(graph, initial_state, repo_config))
