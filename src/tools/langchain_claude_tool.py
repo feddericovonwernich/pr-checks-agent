@@ -335,6 +335,7 @@ Please analyze this failure thoroughly and provide a structured response."""
 
 **Check Name**: {check_name}
 **PR**: #{pr_info.get("number")} - {pr_info.get("title", "")}
+**Branch**: {pr_info.get("branch", "unknown")}
 
 **Project Context**:
 """
@@ -348,13 +349,39 @@ Please analyze this failure thoroughly and provide a structured response."""
 {failure_context}
 ```
 
-Please fix this issue by:
-1. Making the necessary code changes
-2. Ensuring the fix is minimal and targeted
-3. Following project conventions and best practices
-4. Adding appropriate tests if needed
+Please complete the following workflow:
 
-Make only the changes necessary to fix this specific issue.
+1. **Fix the Issue**:
+   - Make the necessary code changes to resolve the failure
+   - Ensure the fix is minimal and targeted
+   - Follow project conventions and best practices
+
+2. **Verify the Fix**:
+   - Run relevant tests to confirm the fix works
+   - For Python: run `pytest` or appropriate test command
+   - For Node.js: run `npm test` or appropriate test command
+   - If tests fail, attempt to fix them as well
+
+3. **Commit the Changes**:
+   - Stage all modified files: `git add -A`
+   - Commit with descriptive message: `git commit -m "Fix {check_name}: <brief description of what was fixed>"`
+   - Include details about what was causing the issue and how it was resolved
+
+4. **Push to PR Branch**:
+   - Push the changes: `git push origin {pr_info.get("branch", "HEAD")}`
+   - Ensure the push is successful
+
+5. **Add PR Comment** (if possible):
+   - Use `gh pr comment {pr_info.get("number", "")} --body "..."` to add a comment explaining:
+     - What was broken
+     - What was fixed
+     - Test results
+     - Any additional steps needed
+
+**Important**: 
+- Complete ALL steps, not just the code changes
+- If any step fails, document why and what manual intervention is needed
+- Ensure all changes are properly committed and pushed
 """
         
         return prompt
@@ -550,12 +577,16 @@ Make only the changes necessary to fix this specific issue.
         """Mock response for fixes in dry-run mode."""
         return {
             "success": True,
-            "fix_description": f"Mock fix for {check_name}: Applied automated fixes to resolve the issue.",
+            "fix_description": f"Mock fix for {check_name}: Applied fixes, ran tests, committed, and pushed changes.",
             "files_modified": ["src/example.py", "tests/test_example.py", "requirements.txt"],
-            "additional_steps": ["Run tests to verify fix"],
-            "verification_commands": ["python -m pytest", "ruff check .", "mypy ."],
+            "git_diff": "Mock git diff showing the changes made",
+            "additional_steps": [],  # All steps completed by Claude
+            "verification_commands": [],  # Already executed by Claude
+            "commit_sha": "abc123def456",  # Mock commit SHA
+            "push_status": "Successfully pushed to origin/feature-branch",
+            "test_results": "All tests passed (15 passed, 0 failed)",
             "attempt_id": attempt_id,
-            "duration_seconds": 5.0,
+            "duration_seconds": 15.0,  # Longer due to test execution
         }
 
     async def health_check(self) -> Dict[str, Any]:
