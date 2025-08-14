@@ -11,8 +11,8 @@ A **LangGraph-powered** automated agent that monitors GitHub pull requests, dete
 - Python 3.13+
 - Redis (for state persistence)
 - GitHub personal access token
-- **LLM Provider API Key**: Choose from OpenAI, Anthropic, or Ollama for decision-making
-- **Anthropic API key** (for Claude Code - repository fixes only)
+- **LLM Provider API Key**: Choose from OpenAI, Anthropic, or Ollama for decision-making (now powered by **LangChain**)
+- **Anthropic API key** (for Claude Code - repository fixes, also via LangChain)
 - Telegram bot token (for notifications)
 
 ### Installation
@@ -97,6 +97,8 @@ The workflow implements a state machine with these key transitions:
 
 - ✅ **Multi-Repository Support**: Monitor multiple repositories simultaneously
 - ✅ **Priority-Based Processing**: Handle critical checks (security, tests) first
+- ✅ **LangChain Integration**: Unified LLM interface with structured outputs and better error handling
+- ✅ **Multi-LLM Support**: Choose from OpenAI, Anthropic Claude, or Ollama providers
 - ✅ **Rate Limiting**: Respect GitHub API and Claude Code usage limits
 - ✅ **Human-in-the-Loop**: Telegram escalation when automation fails
 - ✅ **Custom Observability**: Prometheus metrics and real-time dashboard
@@ -270,6 +272,7 @@ python src/main.py --trace --dashboard
 ## 📚 Documentation
 
 - [`CLAUDE.md`](./CLAUDE.md) - Detailed technical documentation and architecture
+- [`docs/LANGCHAIN_INTEGRATION.md`](./docs/LANGCHAIN_INTEGRATION.md) - LangChain integration guide and migration
 - [`docs/diagrams/`](./docs/diagrams/) - Architecture diagrams and PlantUML sources
 - [GitHub Issues](https://github.com/feddericovonwernich/pr-checks-agent/issues) - Issue tracking and support
 

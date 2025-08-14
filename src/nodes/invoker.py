@@ -8,9 +8,9 @@ from typing import Any
 
 from loguru import logger
 
-from services.llm_provider import LLMService
+from services.langchain_llm_service import LangChainLLMService
 from state.schemas import FixAttempt, FixAttemptStatus, MonitorState
-from tools.claude_tool import ClaudeCodeTool
+from tools.langchain_claude_tool import LangChainClaudeTool
 
 
 async def claude_invoker_node(state: MonitorState) -> dict[str, Any]:
@@ -35,7 +35,7 @@ async def claude_invoker_node(state: MonitorState) -> dict[str, Any]:
 
     logger.info(f"Attempting fixes for {len(fixable_issues)} issues in {repository}")
 
-    claude_tool = ClaudeCodeTool(dry_run=state.get("dry_run", False))
+    claude_tool = LangChainClaudeTool(dry_run=state.get("dry_run", False))
     updated_prs = dict(state.get("active_prs", {}))
     fix_results = []
 
@@ -253,7 +253,7 @@ async def should_escalate_with_llm(state: MonitorState) -> dict[str, Any]:
         "api_key": config.llm.effective_api_key,
         "base_url": config.llm.base_url,
     }
-    llm_service = LLMService(llm_config)
+    llm_service = LangChainLLMService(llm_config)
 
     escalation_decisions = []
 

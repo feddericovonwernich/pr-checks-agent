@@ -7,7 +7,7 @@ from typing import Any
 
 from loguru import logger
 
-from services.llm_provider import LLMService
+from services.langchain_llm_service import LangChainLLMService
 from state.schemas import MonitorState
 from tools.github_tool import GitHubTool
 from utils.config import load_environment_config
@@ -34,10 +34,10 @@ async def failure_analyzer_node(state: MonitorState) -> dict[str, Any]:
 
     github_tool = GitHubTool()
 
-    # Initialize LLM service for decision-making
+    # Initialize LangChain LLM service for decision-making
     env_config = load_environment_config()
     llm_config = env_config.get("llm", {})
-    llm_service = LLMService(llm_config)
+    llm_service = LangChainLLMService(llm_config)
 
     updated_prs = dict(state.get("active_prs", {}))
     analysis_results = []
