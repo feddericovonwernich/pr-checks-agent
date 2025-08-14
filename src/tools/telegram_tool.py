@@ -25,7 +25,7 @@ def retry_with_exponential_backoff(max_retries: int = 3, base_delay: float = 1.0
         async def wrapper(*args: Any, **kwargs: Any) -> Any:  # noqa: PLR0915, PLR0912
             func_name = func.__name__
             start_time = time.time()
-            last_exception = None
+            last_exception: Exception | None = None
 
             # Extract context for logging if available
             context_info = ""
