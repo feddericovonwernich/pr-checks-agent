@@ -271,6 +271,9 @@ def should_retry_or_escalate(state: MonitorState) -> str:
     if workflow_step == "analysis_required":
         logger.warning(f"🚨 Invoker requires analysis before attempting fixes: {error_message}")
         logger.info(f"🔄 Routing back to analysis phase for {repository}")
+        logger.debug(f"🔄 should_retry_or_escalate state keys: {list(state.keys())}")
+        logger.debug(f"🔄 should_retry_or_escalate workflow_step: {state.get('workflow_step')}")
+        logger.debug(f"🔄 should_retry_or_escalate error_message: {state.get('error_message')}")
         return "retry_fixes"  # This will now route to prioritize_failures → analyze_failures
 
     # Check for successful fixes

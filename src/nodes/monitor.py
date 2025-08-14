@@ -133,8 +133,18 @@ async def prioritize_failures(state: MonitorState) -> dict[str, Any]:
     # For retries, we need to also consider existing failed checks that need re-analysis
     all_failed_checks = newly_failed_checks.copy()
     
-    if workflow_step == "analysis_required":
-        logger.info("🔄 Retry scenario: also prioritizing existing failed checks for re-analysis")
+    # Check for retry scenario by looking at the actual conditions, not just workflow_step
+    is_retry_scenario = (
+        workflow_step == "analysis_required" or 
+        (len(newly_failed_checks) == 0 and any(
+            pr_state.get("failed_checks", []) 
+            for pr_state in state.get("active_prs", {}).values()
+        ))
+    )
+    
+    if is_retry_scenario:
+        logger.info("🔄 Retry scenario detected: also prioritizing existing failed checks for re-analysis")
+        logger.debug(f"🔄 Retry detection: workflow_step={workflow_step}, newly_failed={len(newly_failed_checks)}")
         active_prs = state.get("active_prs", {})
         
         for pr_number, pr_state in active_prs.items():
