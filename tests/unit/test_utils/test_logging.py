@@ -1,9 +1,7 @@
 """Tests for logging configuration and utilities"""
 
-import json
 import tempfile
 from pathlib import Path
-from typing import Any
 from unittest.mock import Mock, patch
 
 from src.utils.logging import (
