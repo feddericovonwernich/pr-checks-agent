@@ -129,23 +129,47 @@ async def prioritize_failures(state: MonitorState) -> dict[str, Any]:
     logger.debug(f"📋 Newly failed checks: {len(newly_failed_checks)}")
     logger.debug(f"🔍 Full state keys in prioritize_failures: {list(state.keys())}")
     logger.debug(f"🔍 Error message in state: {state.get('error_message', 'None')}")
+    logger.debug(f"🔍 active_prs count: {len(state.get('active_prs', {}))}")
+    
+    # Debug the structure of active_prs in detail
+    for pr_number, pr_state in state.get("active_prs", {}).items():
+        logger.debug(f"🔍 PR #{pr_number} keys: {list(pr_state.keys()) if isinstance(pr_state, dict) else 'not a dict'}")
+        if isinstance(pr_state, dict):
+            failed_checks = pr_state.get("failed_checks", [])
+            logger.debug(f"🔍 PR #{pr_number} failed_checks: {failed_checks}")
+            workflow_step_pr = pr_state.get("workflow_step", "no_step")  
+            logger.debug(f"🔍 PR #{pr_number} workflow_step: {workflow_step_pr}")
     
     # For retries, we need to also consider existing failed checks that need re-analysis
     all_failed_checks = newly_failed_checks.copy()
     
     # Check for retry scenario by looking at the actual conditions, not just workflow_step
+    active_prs = state.get("active_prs", {})
+    has_existing_failed_checks = any(
+        pr_state.get("failed_checks", []) 
+        for pr_state in active_prs.values()
+    )
+    
     is_retry_scenario = (
         workflow_step == "analysis_required" or 
-        (len(newly_failed_checks) == 0 and any(
-            pr_state.get("failed_checks", []) 
-            for pr_state in state.get("active_prs", {}).values()
-        ))
+        (len(newly_failed_checks) == 0 and has_existing_failed_checks)
     )
+    
+    logger.debug(f"🔍 Retry scenario analysis:")
+    logger.debug(f"  - workflow_step == 'analysis_required': {workflow_step == 'analysis_required'}")
+    logger.debug(f"  - len(newly_failed_checks) == 0: {len(newly_failed_checks) == 0}")
+    logger.debug(f"  - has_existing_failed_checks: {has_existing_failed_checks}")
+    logger.debug(f"  - FINAL is_retry_scenario: {is_retry_scenario}")
+    
+    # Debug existing failed checks in detail
+    for pr_number, pr_state in active_prs.items():
+        failed_checks = pr_state.get("failed_checks", [])
+        if failed_checks:
+            logger.debug(f"  - PR #{pr_number} has failed_checks: {failed_checks}")
     
     if is_retry_scenario:
         logger.info("🔄 Retry scenario detected: also prioritizing existing failed checks for re-analysis")
         logger.debug(f"🔄 Retry detection: workflow_step={workflow_step}, newly_failed={len(newly_failed_checks)}")
-        active_prs = state.get("active_prs", {})
         
         for pr_number, pr_state in active_prs.items():
             failed_checks = pr_state.get("failed_checks", [])
