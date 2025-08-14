@@ -546,7 +546,7 @@ class TestStatePersistenceIntegration:
             timestamp=now,
             check_name="Security Scan",
             reason="High severity vulnerability",
-            telegram_message_id="msg_789",
+            telegram_message_id=789,
             status=EscalationStatus.ACKNOWLEDGED,
             acknowledged_by="@security-team",
             acknowledged_at=now,

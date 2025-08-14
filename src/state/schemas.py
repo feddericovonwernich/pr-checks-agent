@@ -80,7 +80,7 @@ class EscalationRecord(BaseModel):
     timestamp: datetime
     check_name: str
     reason: str
-    telegram_message_id: str | None = None
+    telegram_message_id: int | None = None
     status: EscalationStatus
     acknowledged_by: str | None = None
     acknowledged_at: datetime | None = None
@@ -218,7 +218,7 @@ class EscalationWorkflowState(TypedDict):
 
     # Notification
     telegram_message: str | None
-    telegram_message_id: str | None
+    telegram_message_id: int | None
 
     # Resolution
     acknowledged: bool
