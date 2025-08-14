@@ -159,63 +159,62 @@ class TestLangChainClaudeTool:
 
     @pytest.mark.asyncio
     async def test_fix_issue_structured_success(self):
-        """Test successful structured fix generation."""
-        mock_response = MagicMock()
-        mock_response.content = """{
-            "success": true,
-            "description": "Updated test assertion to match expected behavior",
-            "files_affected": ["tests/test_calculation.py", "src/calculator.py"],
-            "additional_steps": ["Run full test suite"],
-            "verification_commands": ["python -m pytest tests/", "ruff check ."]
-        }"""
-        
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value = mock_response
-        
-        with patch("tools.langchain_claude_tool.ChatAnthropic", return_value=mock_llm):
+        """Test successful fix using Claude CLI (hybrid approach)."""
+        with patch("tools.langchain_claude_tool.ChatAnthropic"):
             with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
-                tool = LangChainClaudeTool(dry_run=False)
-                
-                result = await tool._arun(
-                    operation="fix_issue",
-                    failure_context="AssertionError in test_add",
-                    check_name="Unit Tests",
-                    pr_info={"number": 123, "title": "Fix calculator"},
-                    project_context={"language": "Python"},
-                    repository_path="/tmp/repo"
-                )
-                
-                assert result["success"] is True
-                assert "Updated test assertion" in result["fix_description"]
-                assert len(result["files_modified"]) == 2
-                assert len(result["verification_commands"]) == 2
+                with patch("tools.langchain_claude_tool.LangChainClaudeTool._execute_claude_cli") as mock_cli:
+                    # Mock Claude CLI execution with files and diff included
+                    mock_cli.return_value = {
+                        "success": True,
+                        "output": "Fixed test assertion to match expected behavior",
+                        "files_modified": ["tests/test_calculation.py", "src/calculator.py"],
+                        "git_diff": "diff --git a/tests/test_calculation.py...",
+                        "duration_seconds": 3.5
+                    }
+                    
+                    tool = LangChainClaudeTool(dry_run=False)
+                    
+                    result = await tool._arun(
+                        operation="fix_issue",
+                        failure_context="AssertionError in test_add",
+                        check_name="Unit Tests",
+                        pr_info={"number": 123, "title": "Fix calculator"},
+                        project_context={"language": "Python"},
+                        repository_path="/tmp/repo"
+                    )
+                    
+                    assert result["success"] is True
+                    assert "Fixed test assertion" in result["fix_description"]
+                    assert len(result["files_modified"]) == 2
+                    assert "diff --git" in result["git_diff"]
 
     @pytest.mark.asyncio
     async def test_fix_issue_parse_error_fallback(self):
-        """Test fix generation fallback when structured parsing fails."""
-        mock_response = MagicMock()
-        mock_response.content = "Fix the test by updating the assertion to expect the correct value"
-        
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value = mock_response
-        
-        with patch("tools.langchain_claude_tool.ChatAnthropic", return_value=mock_llm):
+        """Test fix error handling when Claude CLI fails."""
+        with patch("tools.langchain_claude_tool.ChatAnthropic"):
             with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
-                tool = LangChainClaudeTool(dry_run=False)
-                
-                result = await tool._arun(
-                    operation="fix_issue",
-                    failure_context="Test failure",
-                    check_name="CI",
-                    pr_info={},
-                    project_context={},
-                    repository_path="/tmp"
-                )
-                
-                # Should fallback to unstructured
-                assert result["success"] is True  # Assumes success for fallback
-                assert result["fix_description"] == mock_response.content
-                assert len(result["files_modified"]) == 0  # Cannot extract reliably
+                with patch("tools.langchain_claude_tool.LangChainClaudeTool._execute_claude_cli") as mock_cli:
+                    # Mock Claude CLI failure
+                    mock_cli.return_value = {
+                        "success": False,
+                        "error": "Claude CLI execution failed",
+                        "duration_seconds": 1.0
+                    }
+                    
+                    tool = LangChainClaudeTool(dry_run=False)
+                    
+                    result = await tool._arun(
+                        operation="fix_issue",
+                        failure_context="Test failure",
+                        check_name="CI",
+                        pr_info={},
+                        project_context={},
+                        repository_path="/tmp"
+                    )
+                    
+                    # Should return CLI error
+                    assert result["success"] is False
+                    assert "Claude CLI execution failed" in result.get("error", "")
 
     @pytest.mark.asyncio
     async def test_unknown_operation_error(self):
@@ -333,7 +332,8 @@ class TestLangChainClaudeTool:
         
         assert result["status"] == "healthy"
         assert result["mode"] == "dry_run"
-        assert result["provider"] == "langchain_anthropic"
+        assert result["langchain_api"] == "available"
+        assert result["claude_cli"] == "not_tested"
 
     @pytest.mark.asyncio
     async def test_health_check_production_success(self):
@@ -346,41 +346,67 @@ class TestLangChainClaudeTool:
         
         with patch("tools.langchain_claude_tool.ChatAnthropic", return_value=mock_llm):
             with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
-                tool = LangChainClaudeTool(dry_run=False)
-                
-                result = await tool.health_check()
-                
-                assert result["status"] == "healthy"
-                assert result["mode"] == "production"
-                assert result["provider"] == "langchain_anthropic"
-                assert "OK - Claude" in result["test_response"]
+                with patch("asyncio.create_subprocess_exec") as mock_subprocess:
+                    # Mock successful Claude CLI check
+                    mock_process = AsyncMock()
+                    mock_process.returncode = 0
+                    mock_process.communicate.return_value = (b"1.0.80 (Claude Code)", b"")
+                    mock_subprocess.return_value = mock_process
+                    
+                    tool = LangChainClaudeTool(dry_run=False)
+                    
+                    result = await tool.health_check()
+                    
+                    assert result["status"] == "healthy"
+                    assert result["mode"] == "production"
+                    assert result["langchain_api"] == "healthy"
+                    assert result["claude_cli"] == "healthy"
 
     @pytest.mark.asyncio
     async def test_health_check_production_error(self):
-        """Test health check error in production mode."""
+        """Test health check with LangChain API error but Claude CLI working."""
         mock_llm = AsyncMock()
         mock_llm.ainvoke.side_effect = Exception("Connection failed")
         
         with patch("tools.langchain_claude_tool.ChatAnthropic", return_value=mock_llm):
             with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
-                tool = LangChainClaudeTool(dry_run=False)
-                
-                result = await tool.health_check()
-                
-                assert result["status"] == "unhealthy"
-                assert "Connection failed" in result["error"]
+                with patch("asyncio.create_subprocess_exec") as mock_subprocess:
+                    # Mock successful Claude CLI check
+                    mock_process = AsyncMock()
+                    mock_process.returncode = 0
+                    mock_process.communicate.return_value = (b"1.0.80 (Claude Code)", b"")
+                    mock_subprocess.return_value = mock_process
+                    
+                    tool = LangChainClaudeTool(dry_run=False)
+                    
+                    result = await tool.health_check()
+                    
+                    # Should be partial: API fails but CLI works
+                    assert result["status"] == "partial"
+                    assert result["langchain_api"].startswith("unhealthy:")
+                    assert result["claude_cli"] == "healthy"
 
     @pytest.mark.asyncio
     async def test_health_check_no_llm_initialized(self):
-        """Test health check when LLM is not initialized."""
+        """Test health check when LLM is not initialized but Claude CLI works."""
         # Create tool in dry run mode, then manually set dry_run to False
         tool = LangChainClaudeTool(dry_run=True)
         tool.dry_run = False  # Simulate state where LLM wasn't initialized
+        tool.claude_llm = None
         
-        result = await tool.health_check()
-        
-        assert result["status"] == "unhealthy"
-        assert "Claude LLM not initialized" in result["error"]
+        with patch("asyncio.create_subprocess_exec") as mock_subprocess:
+            # Mock successful Claude CLI check
+            mock_process = AsyncMock()
+            mock_process.returncode = 0
+            mock_process.communicate.return_value = (b"1.0.80 (Claude Code)", b"")
+            mock_subprocess.return_value = mock_process
+            
+            result = await tool.health_check()
+            
+            # Should be partial: no LLM but CLI works
+            assert result["status"] == "partial"
+            assert result["langchain_api"] == "not_initialized"
+            assert result["claude_cli"] == "healthy"
 
 
 class TestLangChainClaudeInput:

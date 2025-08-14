@@ -85,15 +85,14 @@ async def claude_invoker_node(state: MonitorState) -> dict[str, Any]:
                 "last_updated": datetime.now(),
             }
 
-            # Attempt the fix
+            # Attempt the fix using Claude Code CLI
             fix_result = await claude_tool._arun(
                 operation="fix_issue",
                 failure_context=analysis["failure_context"],
                 check_name=check_name,
                 pr_info=pr_info,
                 project_context=config.claude_context,
-                # In a real implementation, you'd need to provide the repository path
-                repository_path=None,  # This would be the local clone path
+                repository_path=config.repository_path,  # Local repository path for Claude CLI
             )
 
             # Update fix attempt with results

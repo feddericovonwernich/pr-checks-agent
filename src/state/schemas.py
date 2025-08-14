@@ -116,6 +116,7 @@ class RepositoryConfig(BaseModel):
     fix_limits: dict[str, Any] = Field(default_factory=dict)
     priorities: dict[str, dict[str, int]] = Field(default_factory=dict)
     notifications: dict[str, Any] = Field(default_factory=dict)
+    repository_path: str | None = Field(default=None, description="Local path to repository for Claude Code CLI operations")
 
 
 # LangGraph State Schemas (TypedDict format required by LangGraph)
