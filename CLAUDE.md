@@ -204,7 +204,7 @@ pr-check-agent/
 │   │   └── escalation.py    # Human escalation node
 │   ├── services/            # Business logic services
 │   │   ├── __init__.py
-│   │   └── llm_provider.py  # Configurable LLM provider service
+│   │   └── langchain_llm_service.py  # LangChain-based LLM provider service
 │   ├── state/               # State management
 │   │   ├── __init__.py
 │   │   ├── schemas.py       # State type definitions
@@ -212,7 +212,7 @@ pr-check-agent/
 │   ├── tools/               # LangGraph tools
 │   │   ├── __init__.py
 │   │   ├── github_tool.py   # GitHub API tool
-│   │   ├── claude_tool.py   # Claude Code CLI tool
+│   │   ├── langchain_claude_tool.py   # LangChain-based Claude tool
 │   │   └── telegram_tool.py # Telegram notification tool
 │   └── utils/
 │       ├── config.py        # Configuration management
@@ -372,21 +372,22 @@ gh pr create --title "Feature Title" --body "Description of changes"
 
 The agent implements a **dual-LLM architecture** that separates concerns:
 
-#### 🎯 **Decision-Making LLM** (`src/services/llm_provider.py`)
-- **Purpose**: Intelligent analysis and escalation decisions
+#### 🎯 **Decision-Making LLM** (`src/services/langchain_llm_service.py`)
+- **Purpose**: Intelligent analysis and escalation decisions via **LangChain**
 - **Providers**: OpenAI, Anthropic, or Ollama (configurable)
 - **Responsibilities**:
   - Analyze CI/CD failures and determine fixability
   - Classify error types and severity levels
   - Make intelligent escalation decisions
-  - Provide structured JSON responses for workflow routing
+  - Provide structured Pydantic responses for workflow routing
 
-#### 🔧 **Claude Code CLI** (`src/tools/claude_tool.py`)
-- **Purpose**: Actual repository code changes and fixes
-- **Provider**: Anthropic Claude (via Claude Code CLI)
+#### 🔧 **LangChain Claude Tool** (`src/tools/langchain_claude_tool.py`)
+- **Purpose**: Code analysis and fix suggestions via **LangChain**
+- **Provider**: Anthropic Claude (via direct API)
 - **Responsibilities**:
-  - Execute code modifications in repositories
-  - Apply suggested fixes from failure analysis
+  - Analyze code failures with structured output
+  - Generate fix suggestions and implementation steps
+  - Provide verification commands and impact assessment
   - Interact directly with repository files
   - Maintain code quality and project conventions
 
@@ -451,10 +452,11 @@ The agent implements a **dual-LLM architecture** that separates concerns:
 
 ### LangGraph Tools Integration
 
-#### Claude Code Tool (`src/tools/claude_tool.py`)
+#### LangChain Claude Tool (`src/tools/langchain_claude_tool.py`)
 - **LangGraph Tool**: Native tool integration with automatic state updates
-- **Structured I/O**: Pydantic models for inputs and outputs
-- **Error Handling**: Built-in retry and error recovery
+- **LangChain Integration**: Direct API access with structured outputs
+- **Structured I/O**: Pydantic models for inputs and outputs with automatic parsing
+- **Error Handling**: Built-in retry and error recovery with fallback parsing
 - **Custom Observability**: Built-in tracing and metrics collection
 - **Resource Management**: Concurrent invocation limits
 

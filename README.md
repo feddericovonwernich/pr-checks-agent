@@ -11,8 +11,9 @@ A **LangGraph-powered** automated agent that monitors GitHub pull requests, dete
 - Python 3.13+
 - Redis (for state persistence)
 - GitHub personal access token
-- **LLM Provider API Key**: Choose from OpenAI, Anthropic, or Ollama for decision-making
-- **Anthropic API key** (for Claude Code - repository fixes only)
+- **Claude Code CLI**: Install from [Claude Code documentation](https://docs.anthropic.com/en/docs/claude-code)
+- **LLM Provider API Key**: Choose from OpenAI, Anthropic, or Ollama for decision-making (powered by **LangChain**)
+- **Anthropic API key** (for Claude Code analysis and repository fixes)
 - Telegram bot token (for notifications)
 
 ### Installation
@@ -59,7 +60,7 @@ This agent uses **LangGraph** to implement sophisticated workflows for:
 
 - **Repository Monitoring**: Continuous polling of GitHub PRs and check statuses
 - **Intelligent Analysis**: Configurable LLM providers (OpenAI, Anthropic, Ollama) for failure analysis
-- **Automated Fixes**: Claude Code integration for actual repository changes
+- **Automated Fixes**: Hybrid Claude integration (LangChain API for analysis + Claude Code CLI for actual repository changes)
 - **Smart Escalation**: LLM-powered escalation decisions with human notifications
 - **State Management**: Persistent workflow state across restarts
 
@@ -97,6 +98,8 @@ The workflow implements a state machine with these key transitions:
 
 - ✅ **Multi-Repository Support**: Monitor multiple repositories simultaneously
 - ✅ **Priority-Based Processing**: Handle critical checks (security, tests) first
+- ✅ **LangChain Integration**: Unified LLM interface with structured outputs and better error handling
+- ✅ **Multi-LLM Support**: Choose from OpenAI, Anthropic Claude, or Ollama providers
 - ✅ **Rate Limiting**: Respect GitHub API and Claude Code usage limits
 - ✅ **Human-in-the-Loop**: Telegram escalation when automation fails
 - ✅ **Custom Observability**: Prometheus metrics and real-time dashboard
@@ -110,7 +113,7 @@ The workflow implements a state machine with these key transitions:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `GITHUB_TOKEN` | GitHub personal access token | Required |
-| `ANTHROPIC_API_KEY` | Claude Code API key (for repository fixes) | Required |
+| `ANTHROPIC_API_KEY` | Claude Code API key (for analysis and fixes) | Required |
 | **LLM Provider Configuration** | | |
 | `LLM_PROVIDER` | LLM provider: `openai`, `anthropic`, or `ollama` | `openai` |
 | `OPENAI_API_KEY` | OpenAI API key (if using OpenAI provider) | Optional |
@@ -134,10 +137,15 @@ The agent uses **two separate LLM systems** with distinct roles:
 - **Providers**: OpenAI, Anthropic, or Ollama
 - **Configuration**: Environment variables or config file
 
-#### 🔧 **Claude Code CLI** (Fixed)
-- **Purpose**: Performs actual repository code changes
-- **Provider**: Anthropic Claude (via Claude Code CLI)
-- **Configuration**: `ANTHROPIC_API_KEY`
+#### 🔧 **Claude Code Integration** (Hybrid)
+- **Analysis**: LangChain Anthropic API for structured failure analysis
+- **Fixing**: Claude Code CLI for complete fix workflow:
+  - Makes code changes
+  - Runs tests to verify fixes
+  - Commits changes with descriptive messages
+  - Pushes to PR branch
+  - Adds explanatory PR comments
+- **Configuration**: `ANTHROPIC_API_KEY` + local repository paths
 
 #### Provider Examples
 
@@ -173,8 +181,14 @@ Edit `config/repos.json` to specify which repositories to monitor:
     {
       "owner": "your-org",
       "repo": "your-repo",
-      "branch_filter": ["main", "develop"],
+      "repository_path": "/path/to/local/your-repo",
+      "branch_filter": ["main", "develop"], 
       "check_types": ["ci", "tests", "linting"],
+      "claude_context": {
+        "language": "python",
+        "framework": "fastapi",
+        "test_framework": "pytest"
+      },
       "priorities": {
         "check_types": {
           "security": 1,
@@ -192,6 +206,37 @@ Edit `config/repos.json` to specify which repositories to monitor:
   }
 }
 ```
+
+### 📁 Local Repository Setup
+
+For Claude Code CLI to make actual changes, each monitored repository must be available locally:
+
+**Required Configuration:**
+- Set `repository_path` in `config/repos.json` to the local clone path
+- Ensure repositories are kept up-to-date (the agent doesn't auto-pull)
+- Make sure the agent process has write access to repository directories
+
+**Example Setup:**
+```bash
+# Clone your repositories locally
+git clone https://github.com/your-org/repo1.git /home/user/repos/repo1
+git clone https://github.com/your-org/repo2.git /home/user/repos/repo2
+
+# Configure paths in repos.json
+"repositories": [
+  {
+    "owner": "your-org",
+    "repo": "repo1", 
+    "repository_path": "/home/user/repos/repo1",
+    ...
+  }
+]
+```
+
+**Important Notes:**
+- The agent will make direct file changes via Claude Code CLI
+- Always run on a dedicated branch or ensure proper backup/recovery procedures
+- Consider running with `dry_run: true` initially to test configuration
 
 ## 🏥 Monitoring & Health
 
@@ -270,6 +315,7 @@ python src/main.py --trace --dashboard
 ## 📚 Documentation
 
 - [`CLAUDE.md`](./CLAUDE.md) - Detailed technical documentation and architecture
+- [`docs/LANGCHAIN_INTEGRATION.md`](./docs/LANGCHAIN_INTEGRATION.md) - LangChain integration guide and migration
 - [`docs/diagrams/`](./docs/diagrams/) - Architecture diagrams and PlantUML sources
 - [GitHub Issues](https://github.com/feddericovonwernich/pr-checks-agent/issues) - Issue tracking and support
 

@@ -94,7 +94,7 @@ class TestClaudeInvokerNode:
         # Should return state unchanged
         assert result == base_state
 
-    @patch("src.nodes.invoker.ClaudeCodeTool")
+    @patch("src.nodes.invoker.LangChainClaudeTool")
     @patch("src.nodes.invoker.uuid.uuid4")
     @pytest.mark.asyncio
     async def test_claude_invoker_node_successful_fix(
@@ -164,7 +164,7 @@ class TestClaudeInvokerNode:
         assert stats["total_attempted"] == 1
         assert stats["successful_count"] == 1
 
-    @patch("src.nodes.invoker.ClaudeCodeTool")
+    @patch("src.nodes.invoker.LangChainClaudeTool")
     @patch("src.nodes.invoker.uuid.uuid4")
     @pytest.mark.asyncio
     async def test_claude_invoker_node_failed_fix(
@@ -200,7 +200,7 @@ class TestClaudeInvokerNode:
         assert result["total_fixes_attempted"] == 1
         assert result["total_fixes_successful"] == 0
 
-    @patch("src.nodes.invoker.ClaudeCodeTool")
+    @patch("src.nodes.invoker.LangChainClaudeTool")
     @pytest.mark.asyncio
     async def test_claude_invoker_node_max_attempts_reached(
         self, mock_claude_tool, base_state, sample_pr_state, sample_analysis_result
@@ -233,7 +233,7 @@ class TestClaudeInvokerNode:
         assert result["total_fixes_attempted"] == 0
         assert result["total_fixes_successful"] == 0
 
-    @patch("src.nodes.invoker.ClaudeCodeTool")
+    @patch("src.nodes.invoker.LangChainClaudeTool")
     @pytest.mark.asyncio
     async def test_claude_invoker_node_unexpected_exception(
         self, mock_claude_tool, base_state, sample_pr_state, sample_analysis_result
@@ -259,7 +259,7 @@ class TestClaudeInvokerNode:
         assert attempt["status"] == FixAttemptStatus.FAILURE.value
         assert attempt["error_message"] == "Network timeout"
 
-    @patch("src.nodes.invoker.ClaudeCodeTool")
+    @patch("src.nodes.invoker.LangChainClaudeTool")
     @pytest.mark.asyncio
     async def test_claude_invoker_node_multiple_fixes(self, mock_claude_tool, base_state):
         """Test invoker with multiple fixable issues."""
@@ -324,7 +324,7 @@ class TestClaudeInvokerNode:
         base_state["active_prs"] = {123: sample_pr_state}
         base_state["analysis_results"] = [sample_analysis_result]
 
-        with patch("src.nodes.invoker.ClaudeCodeTool") as mock_claude_tool:
+        with patch("src.nodes.invoker.LangChainClaudeTool") as mock_claude_tool:
             mock_claude_instance = AsyncMock()
             mock_claude_tool.return_value = mock_claude_instance
 
@@ -534,7 +534,7 @@ class TestShouldRetryOrEscalate:
 class TestInvokerIntegration:
     """Integration tests for invoker node."""
 
-    @patch("src.nodes.invoker.ClaudeCodeTool")
+    @patch("src.nodes.invoker.LangChainClaudeTool")
     @patch("src.nodes.invoker.uuid.uuid4")
     @pytest.mark.asyncio
     async def test_complete_fix_workflow(self, mock_uuid, mock_claude_tool):

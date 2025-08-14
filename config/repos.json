@@ -3,6 +3,7 @@
     {
       "owner": "example-org",
       "repo": "example-repo",
+      "repository_path": "/path/to/local/example-repo",
       "branch_filter": ["main", "develop"],
       "check_types": ["ci", "tests", "linting"],
       "claude_context": {

@@ -8,9 +8,9 @@ from typing import Any
 
 from loguru import logger
 
-from services.llm_provider import LLMService
+from services.langchain_llm_service import LangChainLLMService
 from state.schemas import FixAttempt, FixAttemptStatus, MonitorState
-from tools.claude_tool import ClaudeCodeTool
+from tools.langchain_claude_tool import LangChainClaudeTool
 
 
 async def claude_invoker_node(state: MonitorState) -> dict[str, Any]:
@@ -35,7 +35,7 @@ async def claude_invoker_node(state: MonitorState) -> dict[str, Any]:
 
     logger.info(f"Attempting fixes for {len(fixable_issues)} issues in {repository}")
 
-    claude_tool = ClaudeCodeTool(dry_run=state.get("dry_run", False))
+    claude_tool = LangChainClaudeTool(dry_run=state.get("dry_run", False))
     updated_prs = dict(state.get("active_prs", {}))
     fix_results = []
 
@@ -85,15 +85,14 @@ async def claude_invoker_node(state: MonitorState) -> dict[str, Any]:
                 "last_updated": datetime.now(),
             }
 
-            # Attempt the fix
+            # Attempt the fix using Claude Code CLI
             fix_result = await claude_tool._arun(
                 operation="fix_issue",
                 failure_context=analysis["failure_context"],
                 check_name=check_name,
                 pr_info=pr_info,
                 project_context=config.claude_context,
-                # In a real implementation, you'd need to provide the repository path
-                repository_path=None,  # This would be the local clone path
+                repository_path=config.repository_path,  # Local repository path for Claude CLI
             )
 
             # Update fix attempt with results
@@ -253,7 +252,7 @@ async def should_escalate_with_llm(state: MonitorState) -> dict[str, Any]:
         "api_key": config.llm.effective_api_key,
         "base_url": config.llm.base_url,
     }
-    llm_service = LLMService(llm_config)
+    llm_service = LangChainLLMService(llm_config)
 
     escalation_decisions = []
 
