@@ -190,15 +190,7 @@ class TestAnthropicProvider:
     def test_anthropic_provider_is_available_with_key(self):
         """Test Anthropic provider availability check with API key."""
         # Mock anthropic package to be available
-        with patch("builtins.__import__") as mock_import:
-
-            def side_effect(name: str, *args: object, **kwargs: object) -> object:
-                if name == "anthropic":
-                    return MagicMock()  # Return a mock anthropic module
-                return __import__(name, *args)
-
-            mock_import.side_effect = side_effect
-
+        with patch("services.llm_provider.anthropic", MagicMock()):
             provider = AnthropicProvider(api_key="test-key")
             assert provider.is_available() is True
 

@@ -81,7 +81,7 @@ class OpenAIProvider(BaseLLMProvider):
         self.base_url = kwargs.get("base_url")
         self._client = None
 
-    def _get_client(self) -> "openai.AsyncOpenAI":  # type: ignore[return]
+    def _get_client(self) -> "openai.AsyncOpenAI":
         """Lazy initialization of OpenAI client."""
         if self._client is None:
             if openai is None:
