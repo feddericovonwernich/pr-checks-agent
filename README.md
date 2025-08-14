@@ -139,7 +139,12 @@ The agent uses **two separate LLM systems** with distinct roles:
 
 #### 🔧 **Claude Code Integration** (Hybrid)
 - **Analysis**: LangChain Anthropic API for structured failure analysis
-- **Fixing**: Claude Code CLI for actual repository changes (requires `claude` command installed)
+- **Fixing**: Claude Code CLI for complete fix workflow:
+  - Makes code changes
+  - Runs tests to verify fixes
+  - Commits changes with descriptive messages
+  - Pushes to PR branch
+  - Adds explanatory PR comments
 - **Configuration**: `ANTHROPIC_API_KEY` + local repository paths
 
 #### Provider Examples
