@@ -275,7 +275,7 @@ async def run_monitoring_workflow(
                 logger.debug(f"🎯 DETECTED analysis_results in workflow event: {len(analysis_results)} results")
                 logger.debug(f"🎯 analysis_results content: {analysis_results}")
             else:
-                logger.debug(f"⚠️ No analysis_results found in this workflow event")
+                logger.debug("⚠️ No analysis_results found in this workflow event")
 
             # Handle graceful shutdown signals here if needed
             
