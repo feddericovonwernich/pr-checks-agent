@@ -7,9 +7,10 @@ from typing import Any
 
 from loguru import logger
 
+from services.llm_provider import LLMService
 from state.schemas import MonitorState
-from tools.claude_tool import ClaudeCodeTool
 from tools.github_tool import GitHubTool
+from utils.config import load_environment_config
 
 
 async def failure_analyzer_node(state: MonitorState) -> dict[str, Any]:
@@ -32,7 +33,11 @@ async def failure_analyzer_node(state: MonitorState) -> dict[str, Any]:
     logger.info(f"Analyzing {len(prioritized_failures)} failed checks in {repository}")
 
     github_tool = GitHubTool()
-    claude_tool = ClaudeCodeTool(dry_run=state.get("dry_run", False))
+
+    # Initialize LLM service for decision-making
+    env_config = load_environment_config()
+    llm_config = env_config.get("llm", {})
+    llm_service = LLMService(llm_config)
 
     updated_prs = dict(state.get("active_prs", {}))
     analysis_results = []
@@ -53,9 +58,8 @@ async def failure_analyzer_node(state: MonitorState) -> dict[str, Any]:
             pr_state = updated_prs[pr_number]
             pr_info = pr_state.get("pr_info", {})
 
-            # Use Claude Code to analyze the failure
-            analysis_result = await claude_tool._arun(
-                operation="analyze_failure",
+            # Use LLM service to analyze the failure
+            analysis_result = await llm_service.analyze_failure(
                 failure_context=failure_context,
                 check_name=check_name,
                 pr_info=pr_info,

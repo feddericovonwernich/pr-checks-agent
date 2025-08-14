@@ -1,6 +1,6 @@
 # PR Check Agent
 
-A **LangGraph-powered** automated agent that monitors GitHub pull requests, detects failed checks, and invokes Claude Code with failure information for analysis and fixes.
+A **LangGraph-powered** automated agent that monitors GitHub pull requests, detects failed checks, uses configurable LLM providers for intelligent analysis, and invokes Claude Code for repository fixes.
 
 ## Why LangGraph?
 
@@ -39,12 +39,14 @@ The agent implements a **multi-graph architecture** with separate workflows for 
 - **Edges**: → Failure Analyzer (on failures), → Success Handler (on success)
 
 #### 3. Failure Analyzer Node (`src/nodes/analyzer.py`)
-- **Function**: Extracts failure context and determines fixability
-- **State Updates**: Failure details, error classification
+- **Function**: Uses configurable LLM providers to analyze failures and determine fixability
+- **LLM Integration**: OpenAI, Anthropic, or Ollama for intelligent analysis
+- **State Updates**: Failure details, error classification, LLM analysis results
 - **Edges**: → Claude Invoker (fixable), → Human Escalator (unfixable)
 
 #### 4. Claude Code Invoker Node (`src/nodes/invoker.py`)
-- **Function**: Invokes Claude Code with structured context
+- **Function**: Invokes Claude Code CLI for actual repository changes
+- **Separation**: Uses Claude Code only for fixes, not analysis decisions
 - **State Updates**: Fix attempts, success/failure status
 - **Edges**: → Success Handler (fixed), → Retry Controller (failed), → Escalator (max attempts)
 
@@ -54,8 +56,9 @@ The agent implements a **multi-graph architecture** with separate workflows for 
 - **Edges**: → Claude Invoker (retry), → Escalator (threshold exceeded)
 
 #### 6. Human Escalation Node (`src/nodes/escalation.py`)
-- **Function**: Handles Telegram notifications and human intervention
-- **State Updates**: Escalation status, human responses
+- **Function**: Uses LLM to make intelligent escalation decisions, then handles Telegram notifications
+- **LLM Integration**: Smart escalation decisions based on failure context and history
+- **State Updates**: Escalation status, human responses, LLM escalation rationale
 - **Edges**: → Human Input (wait for response), → Resolution Handler (resolved)
 
 ### State Schema (`src/state/schemas.py`)
@@ -93,10 +96,22 @@ class FixAttempt(TypedDict):
 ## Configuration
 
 ### Environment Variables
+
+#### Core Configuration
 - `GITHUB_TOKEN`: GitHub personal access token with repo access
-- `ANTHROPIC_API_KEY`: API key for Claude Code
+- `ANTHROPIC_API_KEY`: API key for Claude Code CLI (repository fixes)
 - `TELEGRAM_BOT_TOKEN`: Telegram bot token for human notifications
 - `TELEGRAM_CHAT_ID`: Telegram chat/channel ID for escalations
+
+#### LLM Provider Configuration (Decision-Making)
+- `LLM_PROVIDER`: Provider choice: `openai`, `anthropic`, or `ollama` (default: `openai`)
+- `LLM_MODEL`: Model name (e.g., `gpt-4`, `claude-3-5-sonnet-20241022`, `llama3.2`)
+- `OPENAI_API_KEY`: OpenAI API key (required if using OpenAI provider)
+- `LLM_BASE_URL`: Custom base URL (required for Ollama: `http://localhost:11434`)
+- `LLM_TEMPERATURE`: Temperature for responses (default: `0.1`)
+- `LLM_MAX_TOKENS`: Maximum tokens per response (default: `2048`)
+
+#### System Configuration
 - `METRICS_PORT`: Port for Prometheus metrics endpoint (default: 8080)
 - `POLLING_INTERVAL`: Seconds between polling cycles (default: 300)
 - `MAX_CONCURRENT_WORKFLOWS`: Maximum parallel PR workflows (default: 10)
@@ -117,7 +132,7 @@ class FixAttempt(TypedDict):
       "branch_filter": ["main", "develop"],
       "check_types": ["ci", "tests", "linting"],
       "claude_context": {
-        "project_type": "nodejs",
+        "project_type": "nodejs", 
         "test_framework": "jest",
         "linting": "eslint"
       },
@@ -145,6 +160,12 @@ class FixAttempt(TypedDict):
       }
     }
   ],
+  "llm": {
+    "provider": "openai",
+    "model": "gpt-4",
+    "temperature": 0.1,
+    "max_tokens": 2048
+  },
   "global_limits": {
     "max_daily_fixes": 50,
     "max_concurrent_fixes": 5,
@@ -181,6 +202,9 @@ pr-check-agent/
 │   │   ├── invoker.py       # Claude Code invocation node
 │   │   ├── retry.py         # Retry control node
 │   │   └── escalation.py    # Human escalation node
+│   ├── services/            # Business logic services
+│   │   ├── __init__.py
+│   │   └── llm_provider.py  # Configurable LLM provider service
 │   ├── state/               # State management
 │   │   ├── __init__.py
 │   │   ├── schemas.py       # State type definitions
@@ -246,6 +270,11 @@ pip install -r requirements.txt
 - `websockets` - Real-time dashboard updates
 - `jinja2` - Template rendering for dashboard
 - `pytest-asyncio` - Async testing support
+
+#### LLM Provider Dependencies
+- `openai>=1.0.0` - OpenAI GPT models integration
+- `anthropic>=0.25.0` - Anthropic Claude models integration
+- `httpx>=0.25.0` - HTTP client for Ollama and custom endpoints
 
 ### Docker Setup
 ```bash
@@ -338,6 +367,34 @@ gh pr create --title "Feature Title" --body "Description of changes"
 - [PR #11: Add comprehensive tests for utils package](https://github.com/feddericovonwernich/pr-checks-agent/pull/11) - Comprehensive test coverage for config, logging, and monitoring utilities
 
 ## Architecture Notes
+
+### Dual-LLM Architecture
+
+The agent implements a **dual-LLM architecture** that separates concerns:
+
+#### 🎯 **Decision-Making LLM** (`src/services/llm_provider.py`)
+- **Purpose**: Intelligent analysis and escalation decisions
+- **Providers**: OpenAI, Anthropic, or Ollama (configurable)
+- **Responsibilities**:
+  - Analyze CI/CD failures and determine fixability
+  - Classify error types and severity levels
+  - Make intelligent escalation decisions
+  - Provide structured JSON responses for workflow routing
+
+#### 🔧 **Claude Code CLI** (`src/tools/claude_tool.py`)
+- **Purpose**: Actual repository code changes and fixes
+- **Provider**: Anthropic Claude (via Claude Code CLI)
+- **Responsibilities**:
+  - Execute code modifications in repositories
+  - Apply suggested fixes from failure analysis
+  - Interact directly with repository files
+  - Maintain code quality and project conventions
+
+#### Benefits of Separation
+- **Cost Optimization**: Use different models for analysis vs. code changes
+- **Provider Flexibility**: Switch decision-making providers without affecting fixes
+- **Specialized Roles**: Each LLM optimized for its specific task
+- **Fault Isolation**: Decision-making failures don't block code changes
 
 ### LangGraph State Management
 - **Built-in State**: LangGraph manages workflow state automatically

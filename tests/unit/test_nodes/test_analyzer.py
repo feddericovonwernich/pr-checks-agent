@@ -83,13 +83,19 @@ class TestFailureAnalyzerNode:
         # Should return state unchanged
         assert result == base_state
 
+    @patch("src.nodes.analyzer.load_environment_config")
     @patch("src.nodes.analyzer.GitHubTool")
-    @patch("src.nodes.analyzer.ClaudeCodeTool")
+    @patch("src.nodes.analyzer.LLMService")
     @pytest.mark.asyncio
-    async def test_failure_analyzer_node_successful_analysis(
-        self, mock_claude_tool, mock_github_tool, base_state, sample_pr_state, sample_prioritized_failure
+    async def test_failure_analyzer_node_successful_analysis(  # noqa: PLR0913
+        self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state, sample_pr_state, sample_prioritized_failure
     ):
         """Test successful failure analysis."""
+        # Mock environment config to return LLM config
+        mock_load_env_config.return_value = {
+            "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test-key", "base_url": None}
+        }
+
         base_state["active_prs"] = {123: sample_pr_state}
         base_state["prioritized_failures"] = [sample_prioritized_failure]
 
@@ -97,22 +103,25 @@ class TestFailureAnalyzerNode:
         mock_github_instance = AsyncMock()
         mock_github_tool.return_value = mock_github_instance
 
-        # Mock Claude Code tool
-        mock_claude_instance = AsyncMock()
-        mock_claude_tool.return_value = mock_claude_instance
-        mock_claude_instance._arun.return_value = {
+        # Mock LLM service
+        mock_llm_instance = AsyncMock()
+        mock_llm_service.return_value = mock_llm_instance
+        mock_llm_instance.analyze_failure.return_value = {
             "success": True,
             "analysis": "The build failed due to a syntax error in main.py at line 42. Missing colon after if statement.",
             "fixable": True,
-            "suggested_actions": ["Add missing colon after if statement on line 42", "Run syntax check to verify fix"],
-            "attempt_id": "attempt_123",
+            "suggested_actions": ["Add missing colon after if statement on line 42", "Run syntax check before committing"],
+            "confidence": 0.9,
+            "severity": "medium",
+            "category": "syntax_error",
+            "llm_provider": "openai",
+            "llm_model": "gpt-4",
         }
 
         result = await failure_analyzer_node(base_state)
 
-        # Verify Claude tool was called correctly
-        mock_claude_instance._arun.assert_called_once_with(
-            operation="analyze_failure",
+        # Verify LLM service was called correctly
+        mock_llm_instance.analyze_failure.assert_called_once_with(
             failure_context=ANY,  # Will be built by _get_failure_context
             check_name="CI",
             pr_info=sample_pr_state["pr_info"],
@@ -147,13 +156,19 @@ class TestFailureAnalyzerNode:
         assert stats["total_analyzed"] == 1
         assert stats["fixable_count"] == 1
 
+    @patch("src.nodes.analyzer.load_environment_config")
     @patch("src.nodes.analyzer.GitHubTool")
-    @patch("src.nodes.analyzer.ClaudeCodeTool")
+    @patch("src.nodes.analyzer.LLMService")
     @pytest.mark.asyncio
-    async def test_failure_analyzer_node_unfixable_analysis(
-        self, mock_claude_tool, mock_github_tool, base_state, sample_pr_state, sample_prioritized_failure
+    async def test_failure_analyzer_node_unfixable_analysis(  # noqa: PLR0913
+        self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state, sample_pr_state, sample_prioritized_failure
     ):
         """Test analysis that determines issue is not fixable."""
+        # Mock environment config to return LLM config
+        mock_load_env_config.return_value = {
+            "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test-key", "base_url": None}
+        }
+
         base_state["active_prs"] = {123: sample_pr_state}
         base_state["prioritized_failures"] = [sample_prioritized_failure]
 
@@ -161,9 +176,9 @@ class TestFailureAnalyzerNode:
         mock_github_instance = AsyncMock()
         mock_github_tool.return_value = mock_github_instance
 
-        mock_claude_instance = AsyncMock()
-        mock_claude_tool.return_value = mock_claude_instance
-        mock_claude_instance._arun.return_value = {
+        mock_llm_instance = AsyncMock()
+        mock_llm_service.return_value = mock_llm_instance
+        mock_llm_instance.analyze_failure.return_value = {
             "success": True,
             "analysis": "The failure is due to external service dependency being unavailable. "
             "This requires manual intervention.",
@@ -184,13 +199,19 @@ class TestFailureAnalyzerNode:
         assert stats["total_analyzed"] == 1
         assert stats["fixable_count"] == 0
 
+    @patch("src.nodes.analyzer.load_environment_config")
     @patch("src.nodes.analyzer.GitHubTool")
-    @patch("src.nodes.analyzer.ClaudeCodeTool")
+    @patch("src.nodes.analyzer.LLMService")
     @pytest.mark.asyncio
-    async def test_failure_analyzer_node_claude_analysis_failure(
-        self, mock_claude_tool, mock_github_tool, base_state, sample_pr_state, sample_prioritized_failure
+    async def test_failure_analyzer_node_claude_analysis_failure(  # noqa: PLR0913
+        self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state, sample_pr_state, sample_prioritized_failure
     ):
         """Test when Claude analysis fails."""
+        # Mock environment config to return LLM config
+        mock_load_env_config.return_value = {
+            "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test-key", "base_url": None}
+        }
+
         base_state["active_prs"] = {123: sample_pr_state}
         base_state["prioritized_failures"] = [sample_prioritized_failure]
 
@@ -198,9 +219,9 @@ class TestFailureAnalyzerNode:
         mock_github_instance = AsyncMock()
         mock_github_tool.return_value = mock_github_instance
 
-        mock_claude_instance = AsyncMock()
-        mock_claude_tool.return_value = mock_claude_instance
-        mock_claude_instance._arun.return_value = {"success": False, "error": "Claude Code CLI not available"}
+        mock_llm_instance = AsyncMock()
+        mock_llm_service.return_value = mock_llm_instance
+        mock_llm_instance.analyze_failure.return_value = {"success": False, "error": "Claude Code CLI not available"}
 
         result = await failure_analyzer_node(base_state)
 
@@ -212,13 +233,19 @@ class TestFailureAnalyzerNode:
         # Verify no analysis results
         assert result["analysis_results"] == []
 
+    @patch("src.nodes.analyzer.load_environment_config")
     @patch("src.nodes.analyzer.GitHubTool")
-    @patch("src.nodes.analyzer.ClaudeCodeTool")
+    @patch("src.nodes.analyzer.LLMService")
     @pytest.mark.asyncio
-    async def test_failure_analyzer_node_unexpected_exception(
-        self, mock_claude_tool, mock_github_tool, base_state, sample_pr_state, sample_prioritized_failure
+    async def test_failure_analyzer_node_unexpected_exception(  # noqa: PLR0913
+        self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state, sample_pr_state, sample_prioritized_failure
     ):
         """Test analyzer with unexpected exception."""
+        # Mock environment config to return LLM config
+        mock_load_env_config.return_value = {
+            "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test-key", "base_url": None}
+        }
+
         base_state["active_prs"] = {123: sample_pr_state}
         base_state["prioritized_failures"] = [sample_prioritized_failure]
 
@@ -226,9 +253,9 @@ class TestFailureAnalyzerNode:
         mock_github_instance = AsyncMock()
         mock_github_tool.return_value = mock_github_instance
 
-        mock_claude_instance = AsyncMock()
-        mock_claude_tool.return_value = mock_claude_instance
-        mock_claude_instance._arun.side_effect = Exception("Network timeout")
+        mock_llm_instance = AsyncMock()
+        mock_llm_service.return_value = mock_llm_instance
+        mock_llm_instance.analyze_failure.side_effect = Exception("Network timeout")
 
         result = await failure_analyzer_node(base_state)
 
@@ -237,11 +264,19 @@ class TestFailureAnalyzerNode:
         assert updated_pr["workflow_step"] == "analysis_error"
         assert "Network timeout" in updated_pr["error_message"]
 
+    @patch("src.nodes.analyzer.load_environment_config")
     @patch("src.nodes.analyzer.GitHubTool")
-    @patch("src.nodes.analyzer.ClaudeCodeTool")
+    @patch("src.nodes.analyzer.LLMService")
     @pytest.mark.asyncio
-    async def test_failure_analyzer_node_multiple_failures(self, mock_claude_tool, mock_github_tool, base_state):
+    async def test_failure_analyzer_node_multiple_failures(
+        self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state
+    ):
         """Test analyzer with multiple failures."""
+        # Mock environment config to return LLM config
+        mock_load_env_config.return_value = {
+            "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test-key", "base_url": None}
+        }
+
         # Setup multiple PR states
         pr_state_1 = {
             "pr_number": 123,
@@ -274,8 +309,8 @@ class TestFailureAnalyzerNode:
         mock_github_instance = AsyncMock()
         mock_github_tool.return_value = mock_github_instance
 
-        mock_claude_instance = AsyncMock()
-        mock_claude_tool.return_value = mock_claude_instance
+        mock_llm_instance = AsyncMock()
+        mock_llm_service.return_value = mock_llm_instance
 
         # Return different results for each call
         mock_responses = [
@@ -294,26 +329,32 @@ class TestFailureAnalyzerNode:
                 "attempt_id": "attempt_2",
             },
         ]
-        mock_claude_instance._arun.side_effect = mock_responses
+        mock_llm_instance.analyze_failure.side_effect = mock_responses
 
         result = await failure_analyzer_node(base_state)
 
         # Verify both failures were analyzed
         assert len(result["analysis_results"]) == 2
-        assert mock_claude_instance._arun.call_count == 2
+        assert mock_llm_instance.analyze_failure.call_count == 2
 
         # Verify analysis stats
         stats = result["analysis_stats"]
         assert stats["total_analyzed"] == 2
         assert stats["fixable_count"] == 1
 
+    @patch("src.nodes.analyzer.load_environment_config")
     @patch("src.nodes.analyzer.GitHubTool")
-    @patch("src.nodes.analyzer.ClaudeCodeTool")
+    @patch("src.nodes.analyzer.LLMService")
     @pytest.mark.asyncio
-    async def test_failure_analyzer_node_dry_run_mode(
-        self, mock_claude_tool, mock_github_tool, base_state, sample_pr_state, sample_prioritized_failure
+    async def test_failure_analyzer_node_dry_run_mode(  # noqa: PLR0913
+        self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state, sample_pr_state, sample_prioritized_failure
     ):
         """Test analyzer in dry run mode."""
+        # Mock environment config to return LLM config
+        mock_load_env_config.return_value = {
+            "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test-key", "base_url": None}
+        }
+
         base_state["dry_run"] = True
         base_state["active_prs"] = {123: sample_pr_state}
         base_state["prioritized_failures"] = [sample_prioritized_failure]
@@ -323,9 +364,9 @@ class TestFailureAnalyzerNode:
         mock_github_tool.return_value = mock_github_instance
 
         # Mock Claude tool
-        mock_claude_instance = AsyncMock()
-        mock_claude_tool.return_value = mock_claude_instance
-        mock_claude_instance._arun.return_value = {
+        mock_llm_instance = AsyncMock()
+        mock_llm_service.return_value = mock_llm_instance
+        mock_llm_instance.analyze_failure.return_value = {
             "success": True,
             "analysis": "Test analysis",
             "fixable": True,
@@ -333,9 +374,11 @@ class TestFailureAnalyzerNode:
             "attempt_id": "test_id",
         }
 
-        # Verify dry_run is passed to Claude tool
+        # Verify LLM service is created with env config
         await failure_analyzer_node(base_state)
-        mock_claude_tool.assert_called_once_with(dry_run=True)
+        mock_llm_service.assert_called_once_with(
+            {"provider": "openai", "model": "gpt-4", "api_key": "test-key", "base_url": None}
+        )
 
 
 class TestGetFailureContext:
@@ -504,11 +547,17 @@ class TestShouldAttemptFixes:
 class TestAnalyzerIntegration:
     """Integration tests for analyzer node."""
 
+    @patch("src.nodes.analyzer.load_environment_config")
     @patch("src.nodes.analyzer.GitHubTool")
-    @patch("src.nodes.analyzer.ClaudeCodeTool")
+    @patch("src.nodes.analyzer.LLMService")
     @pytest.mark.asyncio
-    async def test_complete_analysis_workflow(self, mock_claude_tool, mock_github_tool):
+    async def test_complete_analysis_workflow(self, mock_llm_service, mock_github_tool, mock_load_env_config):
         """Test complete analysis workflow from failure to decision."""
+        # Mock environment config to return LLM config
+        mock_load_env_config.return_value = {
+            "llm": {"provider": "openai", "model": "gpt-4", "api_key": "test-key", "base_url": None}
+        }
+
         # Setup complex state with multiple failures
         config = RepositoryConfig(
             owner="test-org", repo="test-repo", claude_context={"language": "python", "framework": "django"}
@@ -565,8 +614,8 @@ class TestAnalyzerIntegration:
         mock_github_instance = AsyncMock()
         mock_github_tool.return_value = mock_github_instance
 
-        mock_claude_instance = AsyncMock()
-        mock_claude_tool.return_value = mock_claude_instance
+        mock_llm_instance = AsyncMock()
+        mock_llm_service.return_value = mock_llm_instance
 
         # Mock different analysis results
         mock_responses = [
@@ -585,7 +634,7 @@ class TestAnalyzerIntegration:
                 "attempt_id": "test_analysis_1",
             },
         ]
-        mock_claude_instance._arun.side_effect = mock_responses
+        mock_llm_instance.analyze_failure.side_effect = mock_responses
 
         # Step 1: Analyze failures
         analyzed_state = await failure_analyzer_node(state)

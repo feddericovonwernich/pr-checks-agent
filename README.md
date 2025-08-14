@@ -11,7 +11,8 @@ A **LangGraph-powered** automated agent that monitors GitHub pull requests, dete
 - Python 3.13+
 - Redis (for state persistence)
 - GitHub personal access token
-- Anthropic API key (for Claude Code)
+- **LLM Provider API Key**: Choose from OpenAI, Anthropic, or Ollama for decision-making
+- **Anthropic API key** (for Claude Code - repository fixes only)
 - Telegram bot token (for notifications)
 
 ### Installation
@@ -57,9 +58,9 @@ docker-compose up -d
 This agent uses **LangGraph** to implement sophisticated workflows for:
 
 - **Repository Monitoring**: Continuous polling of GitHub PRs and check statuses
-- **Failure Analysis**: Intelligent parsing of check failures and error logs  
-- **Automated Fixes**: Claude Code integration with context-aware fix attempts
-- **Human Escalation**: Telegram notifications when automated fixes fail
+- **Intelligent Analysis**: Configurable LLM providers (OpenAI, Anthropic, Ollama) for failure analysis
+- **Automated Fixes**: Claude Code integration for actual repository changes
+- **Smart Escalation**: LLM-powered escalation decisions with human notifications
 - **State Management**: Persistent workflow state across restarts
 
 ### System Architecture
@@ -80,9 +81,9 @@ The workflow implements a state machine with these key transitions:
 1. **Repository Scanning** → Discovers PRs and check status changes
 2. **Check Monitoring** → Detects failures and triggers analysis
 3. **Priority Processing** → Sorts failures by urgency (security > tests > linting)
-4. **Failure Analysis** → Determines if issues are automatically fixable
-5. **Fix Attempts** → Invokes Claude Code with context (up to 3 attempts)
-6. **Human Escalation** → Telegram notifications for unfixable issues
+4. **Failure Analysis** → Configurable LLM analyzes failures and determines fixability
+5. **Fix Attempts** → Claude Code performs actual repository changes (up to 3 attempts)  
+6. **Smart Escalation** → LLM decides when human intervention is needed
 7. **Polling Wait** → Sleeps between monitoring cycles (default: 5 minutes)
 
 ### Core Components
@@ -109,13 +110,58 @@ The workflow implements a state machine with these key transitions:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `GITHUB_TOKEN` | GitHub personal access token | Required |
-| `ANTHROPIC_API_KEY` | Claude Code API key | Required |
+| `ANTHROPIC_API_KEY` | Claude Code API key (for repository fixes) | Required |
+| **LLM Provider Configuration** | | |
+| `LLM_PROVIDER` | LLM provider: `openai`, `anthropic`, or `ollama` | `openai` |
+| `OPENAI_API_KEY` | OpenAI API key (if using OpenAI provider) | Optional |
+| `LLM_MODEL` | Model name (e.g., `gpt-4`, `claude-3-5-sonnet-20241022`, `llama3.2`) | Provider default |
+| `LLM_BASE_URL` | Custom base URL (for Ollama: `http://localhost:11434`) | Optional |
+| **Telegram Configuration** | | |
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token | Required |
 | `TELEGRAM_CHAT_ID` | Telegram chat/channel ID | Required |
+| **System Configuration** | | |
 | `REDIS_URL` | Redis connection string | `redis://localhost:6379/0` |
 | `POLLING_INTERVAL` | Seconds between polling cycles | `300` |
 | `MAX_FIX_ATTEMPTS` | Max Claude Code attempts per check | `3` |
 | `ESCALATION_COOLDOWN` | Hours between repeated escalations | `24` |
+
+### LLM Provider Configuration
+
+The agent uses **two separate LLM systems** with distinct roles:
+
+#### 🎯 **Decision-Making LLM** (Configurable)
+- **Purpose**: Analyzes failures and makes escalation decisions
+- **Providers**: OpenAI, Anthropic, or Ollama
+- **Configuration**: Environment variables or config file
+
+#### 🔧 **Claude Code CLI** (Fixed)
+- **Purpose**: Performs actual repository code changes
+- **Provider**: Anthropic Claude (via Claude Code CLI)
+- **Configuration**: `ANTHROPIC_API_KEY`
+
+#### Provider Examples
+
+**OpenAI (Default)**:
+```bash
+export LLM_PROVIDER="openai"
+export LLM_MODEL="gpt-4"
+export OPENAI_API_KEY="sk-..."
+```
+
+**Anthropic**:
+```bash
+export LLM_PROVIDER="anthropic"  
+export LLM_MODEL="claude-3-5-sonnet-20241022"
+export ANTHROPIC_API_KEY="sk-ant-..."  # Used for both decision-making and fixes
+```
+
+**Ollama (Local)**:
+```bash
+export LLM_PROVIDER="ollama"
+export LLM_MODEL="llama3.2"
+export LLM_BASE_URL="http://localhost:11434"
+export ANTHROPIC_API_KEY="sk-ant-..."  # Still required for Claude Code fixes
+```
 
 ### Repository Configuration
 
@@ -137,7 +183,13 @@ Edit `config/repos.json` to specify which repositories to monitor:
         }
       }
     }
-  ]
+  ],
+  "llm": {
+    "provider": "openai",
+    "model": "gpt-4",
+    "temperature": 0.1,
+    "max_tokens": 2048
+  }
 }
 ```
 
