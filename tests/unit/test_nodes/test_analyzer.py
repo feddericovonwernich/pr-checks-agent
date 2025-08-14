@@ -376,9 +376,9 @@ class TestFailureAnalyzerNode:
 
         # Verify LLM service is created with env config
         await failure_analyzer_node(base_state)
-        mock_llm_service.assert_called_once_with({
-            "provider": "openai", "model": "gpt-4", "api_key": "test-key", "base_url": None
-        })
+        mock_llm_service.assert_called_once_with(
+            {"provider": "openai", "model": "gpt-4", "api_key": "test-key", "base_url": None}
+        )
 
 
 class TestGetFailureContext:
