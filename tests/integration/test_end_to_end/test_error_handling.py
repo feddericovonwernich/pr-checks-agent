@@ -148,7 +148,7 @@ class TestErrorHandlingWorkflow:
         # For now, let's simplify to test that Claude tool mocking works correctly
         with (
             patch("nodes.scanner.GitHubTool") as mock_github_tool,
-            patch("nodes.invoker.LangChainClaudeTool") as mock_claude_tool
+            patch("nodes.invoker.LangChainClaudeTool") as mock_claude_tool,
         ):
             # Mock GitHub API tool to return PR
             mock_github_instance = AsyncMock()

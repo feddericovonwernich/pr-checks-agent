@@ -65,7 +65,7 @@ class TestLangChainClaudeTool:
             failure_context="Test failure",
             check_name="Unit Tests",
             pr_info={"title": "Test PR"},
-            project_context={}
+            project_context={},
         )
 
         assert result["success"] is True
@@ -84,7 +84,7 @@ class TestLangChainClaudeTool:
             check_name="Linting",
             pr_info={"title": "Test PR"},
             project_context={},
-            repository_path="/tmp/test"
+            repository_path="/tmp/test",
         )
 
         assert result["success"] is True
@@ -120,9 +120,9 @@ class TestLangChainClaudeTool:
                         "title": "Fix calculation bug",
                         "user": {"login": "developer"},
                         "branch": "fix-bug",
-                        "base_branch": "main"
+                        "base_branch": "main",
                     },
-                    project_context={"framework": "pytest", "language": "Python"}
+                    project_context={"framework": "pytest", "language": "Python"},
                 )
 
                 assert result["success"] is True
@@ -149,7 +149,7 @@ class TestLangChainClaudeTool:
                     failure_context="Test failure",
                     check_name="CI",
                     pr_info={},
-                    project_context={}
+                    project_context={},
                 )
 
                 # Should fallback to heuristic parsing
@@ -170,7 +170,7 @@ class TestLangChainClaudeTool:
                         "output": "Fixed test assertion to match expected behavior",
                         "files_modified": ["tests/test_calculation.py", "src/calculator.py"],
                         "git_diff": "diff --git a/tests/test_calculation.py...",
-                        "duration_seconds": 3.5
+                        "duration_seconds": 3.5,
                     }
 
                     tool = LangChainClaudeTool(dry_run=False)
@@ -181,7 +181,7 @@ class TestLangChainClaudeTool:
                         check_name="Unit Tests",
                         pr_info={"number": 123, "title": "Fix calculator"},
                         project_context={"language": "Python"},
-                        repository_path="/tmp/repo"
+                        repository_path="/tmp/repo",
                     )
 
                     assert result["success"] is True
@@ -196,11 +196,7 @@ class TestLangChainClaudeTool:
             with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
                 with patch("tools.langchain_claude_tool.LangChainClaudeTool._execute_claude_cli") as mock_cli:
                     # Mock Claude CLI failure
-                    mock_cli.return_value = {
-                        "success": False,
-                        "error": "Claude CLI execution failed",
-                        "duration_seconds": 1.0
-                    }
+                    mock_cli.return_value = {"success": False, "error": "Claude CLI execution failed", "duration_seconds": 1.0}
 
                     tool = LangChainClaudeTool(dry_run=False)
 
@@ -210,7 +206,7 @@ class TestLangChainClaudeTool:
                         check_name="CI",
                         pr_info={},
                         project_context={},
-                        repository_path="/tmp"
+                        repository_path="/tmp",
                     )
 
                     # Should return CLI error
@@ -223,11 +219,7 @@ class TestLangChainClaudeTool:
         tool = LangChainClaudeTool(dry_run=True)
 
         result = await tool._arun(
-            operation="unknown_operation",
-            failure_context="Test",
-            check_name="Test",
-            pr_info={},
-            project_context={}
+            operation="unknown_operation", failure_context="Test", check_name="Test", pr_info={}, project_context={}
         )
 
         assert result["success"] is False
@@ -248,7 +240,7 @@ class TestLangChainClaudeTool:
                     failure_context="Test failure",
                     check_name="CI",
                     pr_info={},
-                    project_context={}
+                    project_context={},
                 )
 
                 assert result["success"] is False
@@ -263,7 +255,7 @@ class TestLangChainClaudeTool:
             "This can be fixed automatically",
             "Simple syntax error that is fixable",
             "Missing import can be resolved",
-            "Formatting issue that needs correction"
+            "Formatting issue that needs correction",
         ]
 
         for content in positive_cases:
@@ -278,7 +270,7 @@ class TestLangChainClaudeTool:
             "This cannot be fixed automatically",
             "Not fixable due to architectural issues",
             "Requires manual intervention and design changes",
-            "Complex logic problems need human review"
+            "Complex logic problems need human review",
         ]
 
         for content in negative_cases:
@@ -420,7 +412,7 @@ class TestLangChainClaudeInput:
             failure_context="Test failed with assertion error",
             check_name="Unit Tests",
             pr_info={"number": 123, "title": "Fix bug"},
-            project_context={"language": "Python"}
+            project_context={"language": "Python"},
         )
 
         assert input_data.operation == "analyze_failure"
@@ -434,7 +426,7 @@ class TestLangChainClaudeInput:
             failure_context="Linting error in code",
             check_name="Linting",
             pr_info={"number": 456},
-            repository_path="/path/to/repo"
+            repository_path="/path/to/repo",
         )
 
         assert input_data.operation == "fix_issue"
@@ -442,12 +434,7 @@ class TestLangChainClaudeInput:
 
     def test_default_values(self):
         """Test input schema default values."""
-        input_data = LangChainClaudeInput(
-            operation="analyze_failure",
-            failure_context="Test",
-            check_name="Test",
-            pr_info={}
-        )
+        input_data = LangChainClaudeInput(operation="analyze_failure", failure_context="Test", check_name="Test", pr_info={})
 
         assert input_data.project_context == {}
         assert input_data.repository_path is None

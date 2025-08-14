@@ -28,7 +28,7 @@ except ImportError:
 
 class AnalysisResult(BaseModel):
     """Structured output for code analysis."""
-    
+
     root_cause: str = Field(description="Root cause analysis of the failure")
     is_fixable: bool = Field(description="Whether this is automatically fixable")
     fix_steps: list[str] = Field(description="Specific steps to resolve the issue")
@@ -38,7 +38,7 @@ class AnalysisResult(BaseModel):
 
 class FixResult(BaseModel):
     """Structured output for fix attempts."""
-    
+
     success: bool = Field(description="Whether the fix was successful")
     description: str = Field(description="Description of changes made")
     files_affected: list[str] = Field(description="List of files that would be modified")
@@ -69,40 +69,34 @@ class LangChainClaudeTool(BaseTool):
 
     def __init__(self, dry_run: bool = False, model: str = "claude-3-5-sonnet-20241022"):
         super().__init__()
-        
+
         self.dry_run = dry_run
         self.model = model
         self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-        
+
         if not self.anthropic_api_key and not dry_run:
             raise ValueError("ANTHROPIC_API_KEY environment variable is required")
-        
+
         # Initialize Claude LLM for analysis
         if not dry_run:
             self.claude_llm = self._create_claude_llm()
         else:
             self.claude_llm = None
-        
+
         # Check Claude Code CLI availability
         self._check_claude_cli()
-            
+
         # Initialize parsers
         self.analysis_parser = PydanticOutputParser(pydantic_object=AnalysisResult)
         self.fix_parser = PydanticOutputParser(pydantic_object=FixResult)
-        
+
         logger.info(f"LangChain Claude tool initialized (dry_run={dry_run}, model={model})")
 
     def _check_claude_cli(self) -> None:
         """Check if claude-code CLI is available."""
         try:
-            result = subprocess.run(
-                ["claude", "--version"],
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=10
-            )  # nosec B603 B607 - trusted Claude CLI invocation
-            
+            result = subprocess.run(["claude", "--version"], check=False, capture_output=True, text=True, timeout=10)  # nosec B603 B607 - trusted Claude CLI invocation
+
             if result.returncode == 0:
                 logger.info(f"Claude CLI available: {result.stdout.strip()}")
             else:
@@ -114,13 +108,8 @@ class LangChainClaudeTool(BaseTool):
         """Create Claude LangChain LLM."""
         if ChatAnthropic is None:
             raise ImportError("langchain-anthropic package required. Install with: pip install langchain-anthropic")
-        
-        return ChatAnthropic(
-            model=self.model,
-            api_key=self.anthropic_api_key,
-            temperature=0.1,
-            max_tokens=4096
-        )
+
+        return ChatAnthropic(model=self.model, api_key=self.anthropic_api_key, temperature=0.1, max_tokens=4096)
 
     def _run(self, operation: str, **kwargs) -> dict[str, Any]:
         """Synchronous wrapper - not implemented for async tool."""
@@ -164,12 +153,7 @@ class LangChainClaudeTool(BaseTool):
             }
 
     async def _analyze_failure_structured(
-        self,
-        attempt_id: str,
-        failure_context: str,
-        check_name: str,
-        pr_info: dict[str, Any],
-        project_context: dict[str, str]
+        self, attempt_id: str, failure_context: str, check_name: str, pr_info: dict[str, Any], project_context: dict[str, str]
     ) -> dict[str, Any]:
         """Analyze failure using structured LangChain prompts."""
         logger.info(f"Analyzing failure for {check_name} (attempt {attempt_id})")
@@ -192,7 +176,7 @@ Focus on:
 
 {format_instructions}"""
             )
-            
+
             human_template = HumanMessagePromptTemplate.from_template(
                 """**Failure Analysis Request**
 
@@ -210,9 +194,9 @@ Focus on:
 
 Please analyze this failure thoroughly and provide a structured response."""
             )
-            
+
             prompt = ChatPromptTemplate.from_messages([system_template, human_template])
-            
+
             # Format prompt
             formatted_prompt = prompt.format_prompt(
                 format_instructions=self.analysis_parser.get_format_instructions(),
@@ -223,18 +207,18 @@ Please analyze this failure thoroughly and provide a structured response."""
                 pr_branch=pr_info.get("branch", "N/A"),
                 pr_base_branch=pr_info.get("base_branch", "N/A"),
                 project_context=self._format_project_context(project_context),
-                failure_context=failure_context
+                failure_context=failure_context,
             )
-            
+
             # Get response
             start_time = datetime.now()
             response = await self.claude_llm.ainvoke(formatted_prompt.to_messages())
             duration = (datetime.now() - start_time).total_seconds()
-            
+
             # Parse structured output
             try:
                 analysis_data = self.analysis_parser.parse(response.content)
-                
+
                 return {
                     "success": True,
                     "analysis": analysis_data.root_cause,
@@ -246,7 +230,7 @@ Please analyze this failure thoroughly and provide a structured response."""
                     "duration_seconds": duration,
                     "raw_response": response.content,
                 }
-                
+
             except Exception as parse_error:
                 logger.warning(f"Failed to parse structured analysis output: {parse_error}")
                 # Fallback to unstructured
@@ -261,7 +245,7 @@ Please analyze this failure thoroughly and provide a structured response."""
                     "duration_seconds": duration,
                     "raw_response": response.content,
                 }
-                
+
         except Exception as e:
             logger.error(f"Analysis error: {e}")
             return {
@@ -278,7 +262,7 @@ Please analyze this failure thoroughly and provide a structured response."""
         check_name: str,
         pr_info: dict[str, Any],
         project_context: dict[str, str],
-        repository_path: str | None
+        repository_path: str | None,
     ) -> dict[str, Any]:
         """Fix issues using Claude Code CLI for actual file modifications."""
         logger.info(f"Attempting fix for {check_name} using Claude Code CLI (attempt {attempt_id})")
@@ -297,10 +281,10 @@ Please analyze this failure thoroughly and provide a structured response."""
         try:
             # Create fix prompt for Claude Code CLI
             prompt = self._create_fix_prompt(failure_context, check_name, pr_info, project_context)
-            
+
             # Execute Claude Code CLI with repository context
             result = await self._execute_claude_cli(prompt, working_directory=repository_path)
-            
+
             return {
                 "success": result["success"],
                 "fix_description": result.get("output", ""),
@@ -312,7 +296,7 @@ Please analyze this failure thoroughly and provide a structured response."""
                 "duration_seconds": result.get("duration_seconds", 0),
                 "error": result.get("error"),
             }
-                
+
         except Exception as e:
             logger.error(f"Claude Code CLI fix error: {e}")
             return {
@@ -323,11 +307,7 @@ Please analyze this failure thoroughly and provide a structured response."""
             }
 
     def _create_fix_prompt(
-        self,
-        failure_context: str,
-        check_name: str,
-        pr_info: dict[str, Any],
-        project_context: dict[str, str]
+        self, failure_context: str, check_name: str, pr_info: dict[str, Any], project_context: dict[str, str]
     ) -> str:
         """Create prompt for automated fixing using Claude Code CLI."""
         prompt = f"""Fix this CI/CD check failure:
@@ -338,10 +318,10 @@ Please analyze this failure thoroughly and provide a structured response."""
 
 **Project Context**:
 """
-        
+
         for key, value in project_context.items():
             prompt += f"- {key}: {value}\n"
-        
+
         prompt += f"""
 **Failure Details**:
 ```
@@ -382,60 +362,48 @@ Please complete the following workflow:
 - If any step fails, document why and what manual intervention is needed
 - Ensure all changes are properly committed and pushed
 """
-        
+
         return prompt
 
-    async def _execute_claude_cli(
-        self,
-        prompt: str,
-        working_directory: str
-    ) -> dict[str, Any]:
+    async def _execute_claude_cli(self, prompt: str, working_directory: str) -> dict[str, Any]:
         """Execute Claude Code CLI with the given prompt."""
         start_time = datetime.now()
-        
+
         try:
             # Create temporary file for prompt
             with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
                 f.write(prompt)
                 prompt_file = f.name
-            
+
             # Build Claude Code command
-            cmd = [
-                "claude",
-                "--prompt-file", prompt_file,
-                "--output-format", "json"
-            ]
-            
+            cmd = ["claude", "--prompt-file", prompt_file, "--output-format", "json"]
+
             # Set environment with API key
             env = os.environ.copy()
             env["ANTHROPIC_API_KEY"] = self.anthropic_api_key
-            
+
             logger.info(f"Executing Claude Code CLI in {working_directory}")
-            
+
             # Execute command
             process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=working_directory,
-                env=env
+                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=working_directory, env=env
             )
-            
+
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=300)
-            
+
             # Clean up temp file
             os.unlink(prompt_file)
-            
+
             duration = (datetime.now() - start_time).total_seconds()
-            
+
             if process.returncode == 0:
                 output = stdout.decode().strip()
                 logger.info(f"Claude Code CLI completed successfully in {duration:.2f}s")
-                
+
                 # Try to extract additional info (files modified, git diff)
                 files_modified = await self._get_modified_files(working_directory)
                 git_diff = await self._get_git_diff(working_directory)
-                
+
                 return {
                     "success": True,
                     "output": output,
@@ -450,7 +418,7 @@ Please complete the following workflow:
                 "error": error_msg,
                 "duration_seconds": duration,
             }
-                
+
         except TimeoutError:
             logger.error("Claude Code CLI execution timed out")
             return {
@@ -470,13 +438,16 @@ Please complete the following workflow:
         """Get list of files modified by Claude Code CLI."""
         try:
             process = await asyncio.create_subprocess_exec(
-                "git", "diff", "--name-only", "HEAD",
+                "git",
+                "diff",
+                "--name-only",
+                "HEAD",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=working_directory
+                cwd=working_directory,
             )
             stdout, _ = await asyncio.wait_for(process.communicate(), timeout=10)
-            
+
             if process.returncode == 0:
                 files = stdout.decode().strip().split("\n")
                 return [f for f in files if f.strip()]
@@ -488,13 +459,10 @@ Please complete the following workflow:
         """Get git diff of changes made by Claude Code CLI."""
         try:
             process = await asyncio.create_subprocess_exec(
-                "git", "diff", "HEAD",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                cwd=working_directory
+                "git", "diff", "HEAD", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE, cwd=working_directory
             )
             stdout, _ = await asyncio.wait_for(process.communicate(), timeout=30)
-            
+
             if process.returncode == 0:
                 return stdout.decode().strip()
             return ""
@@ -505,7 +473,7 @@ Please complete the following workflow:
         """Format project context for prompt inclusion."""
         if not project_context:
             return "No additional project context provided."
-        
+
         formatted = []
         for key, value in project_context.items():
             formatted.append(f"- {key}: {value}")
@@ -514,43 +482,52 @@ Please complete the following workflow:
     def _heuristic_is_fixable(self, content: str) -> bool:
         """Heuristic determination of fixability."""
         content_lower = content.lower()
-        
+
         fixable_indicators = [
-            "can be fixed", "automatically fixable", "simple fix",
-            "syntax error", "missing import", "typo", "formatting",
-            "dependency", "version", "configuration"
+            "can be fixed",
+            "automatically fixable",
+            "simple fix",
+            "syntax error",
+            "missing import",
+            "typo",
+            "formatting",
+            "dependency",
+            "version",
+            "configuration",
         ]
-        
+
         unfixable_indicators = [
-            "cannot be fixed", "not fixable", "manual intervention",
-            "complex logic", "architecture", "design issue"
+            "cannot be fixed",
+            "not fixable",
+            "manual intervention",
+            "complex logic",
+            "architecture",
+            "design issue",
         ]
-        
+
         fixable_score = sum(1 for indicator in fixable_indicators if indicator in content_lower)
         unfixable_score = sum(1 for indicator in unfixable_indicators if indicator in content_lower)
-        
+
         return fixable_score > unfixable_score
 
     def _extract_actions_heuristic(self, content: str) -> list[str]:
         """Extract action items using heuristics."""
         lines = content.split("\n")
         actions = []
-        
+
         for line in lines:
             line = line.strip()
-            if (line.startswith(("- ", "* ")) or
-                any(line.startswith(f"{i}.") for i in range(1, 10))):
-                
+            if line.startswith(("- ", "* ")) or any(line.startswith(f"{i}.") for i in range(1, 10)):
                 # Clean up the action text
                 if line.startswith(("- ", "* ")):
                     action = line[2:].strip()
                 else:
                     # Remove number prefix
                     action = line.split(".", 1)[1].strip() if "." in line else line
-                
+
                 if action and len(action) > 10:  # Filter out very short items
                     actions.append(action)
-                    
+
         return actions[:5]  # Limit to 5 actions
 
     def _mock_analyze_response(self, attempt_id: str, check_name: str) -> dict[str, Any]:
@@ -563,7 +540,7 @@ Please complete the following workflow:
                 f"Review {check_name.lower()} configuration",
                 "Check dependency versions",
                 "Verify environment setup",
-                "Run local tests to reproduce"
+                "Run local tests to reproduce",
             ],
             "side_effects": ["May affect related functionality"],
             "confidence": 0.8,
@@ -596,7 +573,7 @@ Please complete the following workflow:
                     "mode": "dry_run",
                     "langchain_api": "available",
                     "claude_cli": "not_tested",
-                    "model": self.model
+                    "model": self.model,
                 }
 
             health_status = {"mode": "production", "model": self.model}
@@ -607,7 +584,9 @@ Please complete the following workflow:
                     test_message = HumanMessage(content="Hello, respond with 'OK' if you can hear me.")
                     response = await self.claude_llm.ainvoke([test_message])
                     health_status["langchain_api"] = "healthy"
-                    health_status["langchain_test_response"] = response.content[:50] + "..." if len(response.content) > 50 else response.content
+                    health_status["langchain_test_response"] = (
+                        response.content[:50] + "..." if len(response.content) > 50 else response.content
+                    )
                 except Exception as api_error:
                     health_status["langchain_api"] = f"unhealthy: {api_error}"
             else:
@@ -616,12 +595,10 @@ Please complete the following workflow:
             # Test Claude CLI for fixes
             try:
                 process = await asyncio.create_subprocess_exec(
-                    "claude", "--version",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
+                    "claude", "--version", stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
                 )
                 stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=10)
-                
+
                 if process.returncode == 0:
                     version = stdout.decode().strip()
                     health_status["claude_cli"] = "healthy"
@@ -632,8 +609,7 @@ Please complete the following workflow:
                 health_status["claude_cli"] = f"unavailable: {cli_error}"
 
             # Overall status
-            if (health_status.get("langchain_api") == "healthy" and
-                health_status.get("claude_cli") == "healthy"):
+            if health_status.get("langchain_api") == "healthy" and health_status.get("claude_cli") == "healthy":
                 health_status["status"] = "healthy"
             else:
                 health_status["status"] = "partial"  # Can still do analysis even without CLI
@@ -641,9 +617,4 @@ Please complete the following workflow:
             return health_status
 
         except Exception as e:
-            return {
-                "status": "unhealthy",
-                "error": str(e),
-                "mode": "production",
-                "model": self.model
-            }
+            return {"status": "unhealthy", "error": str(e), "mode": "production", "model": self.model}

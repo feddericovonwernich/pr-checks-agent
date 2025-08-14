@@ -56,7 +56,7 @@ class LLMResponse(BaseModel):
 
 class FailureAnalysis(BaseModel):
     """Structured output for failure analysis."""
-    
+
     fixable: bool = Field(description="Whether this failure can be fixed automatically")
     severity: str = Field(description="Severity level: low, medium, high, critical")
     category: str = Field(description="Type of failure (test_failure, build_error, linting, etc.)")
@@ -67,7 +67,7 @@ class FailureAnalysis(BaseModel):
 
 class EscalationDecision(BaseModel):
     """Structured output for escalation decisions."""
-    
+
     should_escalate: bool = Field(description="Whether this needs human attention")
     urgency: str = Field(description="Urgency level: low, medium, high, critical")
     reason: str = Field(description="Explanation of why escalation is/isn't needed")
@@ -89,11 +89,11 @@ class LangChainLLMService:
         self.provider_name = self.config.get("provider", "openai").lower()
         self.model_name = self._get_model_name()
         self.llm = self._create_llm()
-        
+
         # Initialize output parsers
         self.failure_analysis_parser = PydanticOutputParser(pydantic_object=FailureAnalysis)
         self.escalation_parser = PydanticOutputParser(pydantic_object=EscalationDecision)
-        
+
         logger.info(f"LangChain LLM service initialized with {self.provider_name}:{self.model_name}")
 
     def _get_model_name(self) -> str:
@@ -101,13 +101,9 @@ class LangChainLLMService:
         model = self.config.get("model")
         if model:
             return model
-            
+
         # Provider-specific defaults
-        defaults = {
-            "openai": "gpt-4",
-            "anthropic": "claude-3-5-sonnet-20241022",
-            "ollama": "llama3.2"
-        }
+        defaults = {"openai": "gpt-4", "anthropic": "claude-3-5-sonnet-20241022", "ollama": "llama3.2"}
         return defaults.get(self.provider_name, "gpt-4")
 
     def _create_llm(self) -> BaseChatModel:
@@ -124,68 +120,64 @@ class LangChainLLMService:
         """Create OpenAI LangChain LLM."""
         if ChatOpenAI is None:
             raise ImportError("langchain-openai package required. Install with: pip install langchain-openai")
-        
+
         kwargs = {
             "model": self.model_name,
             "temperature": self.config.get("temperature", 0.1),
             "max_tokens": self.config.get("max_tokens", 4096),
         }
-        
+
         # Optional API key override
         if "api_key" in self.config:
             kwargs["api_key"] = self.config["api_key"]
         elif not os.getenv("OPENAI_API_KEY"):
             raise ValueError("OPENAI_API_KEY environment variable or config api_key required")
-            
+
         # Optional base URL for custom endpoints
         if "base_url" in self.config:
             kwargs["base_url"] = self.config["base_url"]
-            
+
         return ChatOpenAI(**kwargs)
 
     def _create_anthropic_llm(self) -> BaseChatModel:
         """Create Anthropic LangChain LLM."""
         if ChatAnthropic is None:
             raise ImportError("langchain-anthropic package required. Install with: pip install langchain-anthropic")
-            
+
         kwargs = {
             "model": self.model_name,
             "temperature": self.config.get("temperature", 0.1),
             "max_tokens": self.config.get("max_tokens", 4096),
         }
-        
+
         # Optional API key override
         if "api_key" in self.config:
             kwargs["api_key"] = self.config["api_key"]
         elif not os.getenv("ANTHROPIC_API_KEY"):
             raise ValueError("ANTHROPIC_API_KEY environment variable or config api_key required")
-            
+
         return ChatAnthropic(**kwargs)
 
     def _create_ollama_llm(self) -> BaseChatModel:
         """Create Ollama LangChain LLM."""
         if ChatOllama is None:
             raise ImportError("langchain-community package required. Install with: pip install langchain-community")
-            
+
         kwargs = {
             "model": self.model_name,
             "temperature": self.config.get("temperature", 0.1),
         }
-        
+
         # Optional base URL override
         if "base_url" in self.config:
             kwargs["base_url"] = self.config["base_url"]
         else:
             kwargs["base_url"] = "http://localhost:11434"
-            
+
         return ChatOllama(**kwargs)
 
     async def analyze_failure(
-        self,
-        failure_context: str,
-        check_name: str,
-        pr_info: dict[str, Any],
-        project_context: dict[str, str] | None = None
+        self, failure_context: str, check_name: str, pr_info: dict[str, Any], project_context: dict[str, str] | None = None
     ) -> dict[str, Any]:
         """Analyze a CI/CD failure and determine next steps using structured output."""
         if project_context is None:
@@ -205,7 +197,7 @@ Focus on common CI/CD issues that can be automatically resolved such as:
 
 {format_instructions}"""
             )
-            
+
             human_template = HumanMessagePromptTemplate.from_template(
                 """**Check Name:** {check_name}
 
@@ -222,12 +214,9 @@ Focus on common CI/CD issues that can be automatically resolved such as:
 
 Please analyze this failure and provide your assessment."""
             )
-            
-            prompt = ChatPromptTemplate.from_messages([
-                system_template,
-                human_template
-            ])
-            
+
+            prompt = ChatPromptTemplate.from_messages([system_template, human_template])
+
             # Format the prompt with data
             formatted_prompt = prompt.format_prompt(
                 format_instructions=self.failure_analysis_parser.get_format_instructions(),
@@ -236,28 +225,30 @@ Please analyze this failure and provide your assessment."""
                 pr_author=pr_info.get("user", {}).get("login", "N/A"),
                 files_changed=len(pr_info.get("changed_files", [])),
                 project_context=self._format_project_context(project_context),
-                failure_context=failure_context
+                failure_context=failure_context,
             )
-            
+
             # Get LLM response
             response = await self.llm.ainvoke(formatted_prompt.to_messages())
-            
+
             # Parse structured output
             try:
                 analysis_data = self.failure_analysis_parser.parse(response.content)
                 result = analysis_data.dict()
-                result.update({
-                    "success": True,
-                    "llm_provider": self.provider_name,
-                    "llm_model": self.model_name,
-                })
+                result.update(
+                    {
+                        "success": True,
+                        "llm_provider": self.provider_name,
+                        "llm_model": self.model_name,
+                    }
+                )
                 return result
-                
+
             except Exception as parse_error:
                 logger.warning(f"Failed to parse structured output, falling back to raw content: {parse_error}")
                 # Fallback to unstructured parsing
                 return self._parse_analysis_fallback(response.content)
-                
+
         except Exception as e:
             logger.error(f"LangChain LLM error during failure analysis: {e}")
             return {
@@ -270,11 +261,7 @@ Please analyze this failure and provide your assessment."""
             }
 
     async def should_escalate(
-        self,
-        failure_info: dict[str, Any],
-        fix_attempts: int,
-        max_attempts: int,
-        project_context: dict[str, str] | None = None
+        self, failure_info: dict[str, Any], fix_attempts: int, max_attempts: int, project_context: dict[str, str] | None = None
     ) -> dict[str, Any]:
         """Determine if an issue should be escalated to humans using structured output."""
         if project_context is None:
@@ -294,7 +281,7 @@ Consider factors like:
 
 {format_instructions}"""
             )
-            
+
             human_template = HumanMessagePromptTemplate.from_template(
                 """**Fix Attempts:** {fix_attempts} out of {max_attempts} maximum
 
@@ -309,12 +296,9 @@ Consider factors like:
 
 Should this issue be escalated to human developers? Provide your decision."""
             )
-            
-            prompt = ChatPromptTemplate.from_messages([
-                system_template,
-                human_template
-            ])
-            
+
+            prompt = ChatPromptTemplate.from_messages([system_template, human_template])
+
             # Format the prompt
             formatted_prompt = prompt.format_prompt(
                 format_instructions=self.escalation_parser.get_format_instructions(),
@@ -324,26 +308,28 @@ Should this issue be escalated to human developers? Provide your decision."""
                 severity=failure_info.get("severity", "unknown"),
                 fixable=failure_info.get("fixable", False),
                 analysis=failure_info.get("analysis", "No analysis available"),
-                project_context=self._format_project_context(project_context)
+                project_context=self._format_project_context(project_context),
             )
-            
+
             # Get LLM response
             response = await self.llm.ainvoke(formatted_prompt.to_messages())
-            
+
             # Parse structured output
             try:
                 escalation_data = self.escalation_parser.parse(response.content)
                 result = escalation_data.dict()
-                result.update({
-                    "llm_provider": self.provider_name,
-                    "llm_model": self.model_name,
-                })
+                result.update(
+                    {
+                        "llm_provider": self.provider_name,
+                        "llm_model": self.model_name,
+                    }
+                )
                 return result
-                
+
             except Exception as parse_error:
                 logger.warning(f"Failed to parse escalation output, falling back: {parse_error}")
                 return self._parse_escalation_fallback(response.content)
-                
+
         except Exception as e:
             logger.error(f"LangChain LLM error during escalation decision: {e}")
             # Default to escalation if LLM fails
@@ -357,15 +343,11 @@ Should this issue be escalated to human developers? Provide your decision."""
                 "llm_model": self.model_name,
             }
 
-    async def generate_response(
-        self,
-        messages: list[BaseMessage],
-        **kwargs
-    ) -> LLMResponse:
+    async def generate_response(self, messages: list[BaseMessage], **kwargs) -> LLMResponse:
         """Generic method to generate responses using LangChain."""
         try:
             response = await self.llm.ainvoke(messages, **kwargs)
-            
+
             # Extract usage information if available
             usage = {}
             if hasattr(response, "response_metadata") and response.response_metadata:
@@ -376,30 +358,20 @@ Should this issue be escalated to human developers? Provide your decision."""
                         "completion_tokens": token_usage.get("completion_tokens", 0),
                         "total_tokens": token_usage.get("total_tokens", 0),
                     }
-            
+
             return LLMResponse(
-                content=response.content,
-                provider=self.provider_name,
-                model=self.model_name,
-                usage=usage,
-                success=True
+                content=response.content, provider=self.provider_name, model=self.model_name, usage=usage, success=True
             )
-            
+
         except Exception as e:
             logger.error(f"LangChain LLM generation error: {e}")
-            return LLMResponse(
-                content="",
-                provider=self.provider_name,
-                model=self.model_name,
-                success=False,
-                error=str(e)
-            )
+            return LLMResponse(content="", provider=self.provider_name, model=self.model_name, success=False, error=str(e))
 
     def _format_project_context(self, project_context: dict[str, str]) -> str:
         """Format project context for prompt inclusion."""
         if not project_context:
             return "No additional context provided."
-        
+
         formatted = []
         for key, value in project_context.items():
             formatted.append(f"- {key}: {value}")
@@ -409,12 +381,12 @@ Should this issue be escalated to human developers? Provide your decision."""
         """Fallback parsing for analysis when structured parsing fails."""
         # Simple heuristic parsing as fallback
         content_lower = content.lower()
-        
+
         return {
             "success": True,
-            "fixable": any(indicator in content_lower for indicator in [
-                "fixable", "can be fixed", "automatically", "simple fix"
-            ]),
+            "fixable": any(
+                indicator in content_lower for indicator in ["fixable", "can be fixed", "automatically", "simple fix"]
+            ),
             "severity": "medium",  # Default
             "category": "unknown",
             "analysis": content,
@@ -427,11 +399,9 @@ Should this issue be escalated to human developers? Provide your decision."""
     def _parse_escalation_fallback(self, content: str) -> dict[str, Any]:
         """Fallback parsing for escalation when structured parsing fails."""
         content_lower = content.lower()
-        
-        should_escalate = any(indicator in content_lower for indicator in [
-            "escalate", "human", "manual", "intervention"
-        ])
-        
+
+        should_escalate = any(indicator in content_lower for indicator in ["escalate", "human", "manual", "intervention"])
+
         return {
             "should_escalate": should_escalate,
             "urgency": "medium",
@@ -448,13 +418,11 @@ Should this issue be escalated to human developers? Provide your decision."""
             # Basic availability check - more sophisticated checks could be added
             if self.provider_name == "openai":
                 return ChatOpenAI is not None and (
-                    self.config.get("api_key") is not None or
-                    os.getenv("OPENAI_API_KEY") is not None
+                    self.config.get("api_key") is not None or os.getenv("OPENAI_API_KEY") is not None
                 )
             if self.provider_name == "anthropic":
                 return ChatAnthropic is not None and (
-                    self.config.get("api_key") is not None or
-                    os.getenv("ANTHROPIC_API_KEY") is not None
+                    self.config.get("api_key") is not None or os.getenv("ANTHROPIC_API_KEY") is not None
                 )
             if self.provider_name == "ollama":
                 return ChatOllama is not None
@@ -468,5 +436,5 @@ Should this issue be escalated to human developers? Provide your decision."""
             "provider": self.provider_name,
             "model": self.model_name,
             "available": self.is_available(),
-            "config": {k: v for k, v in self.config.items() if k != "api_key"}  # Exclude sensitive data
+            "config": {k: v for k, v in self.config.items() if k != "api_key"},  # Exclude sensitive data
         }

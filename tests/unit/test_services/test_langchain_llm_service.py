@@ -12,12 +12,7 @@ class TestLangChainLLMService:
 
     def test_service_initialization_openai(self):
         """Test service initialization with OpenAI provider."""
-        config = {
-            "provider": "openai",
-            "model": "gpt-4",
-            "temperature": 0.2,
-            "api_key": "test-key"
-        }
+        config = {"provider": "openai", "model": "gpt-4", "temperature": 0.2, "api_key": "test-key"}
 
         with patch("services.langchain_llm_service.ChatOpenAI") as mock_chat_openai:
             mock_chat_openai.return_value = MagicMock()
@@ -34,11 +29,7 @@ class TestLangChainLLMService:
 
     def test_service_initialization_anthropic(self):
         """Test service initialization with Anthropic provider."""
-        config = {
-            "provider": "anthropic",
-            "model": "claude-3-5-sonnet-20241022",
-            "api_key": "test-anthropic-key"
-        }
+        config = {"provider": "anthropic", "model": "claude-3-5-sonnet-20241022", "api_key": "test-anthropic-key"}
 
         with patch("services.langchain_llm_service.ChatAnthropic") as mock_chat_anthropic:
             mock_chat_anthropic.return_value = MagicMock()
@@ -51,11 +42,7 @@ class TestLangChainLLMService:
 
     def test_service_initialization_ollama(self):
         """Test service initialization with Ollama provider."""
-        config = {
-            "provider": "ollama",
-            "model": "llama3.2",
-            "base_url": "http://localhost:11434"
-        }
+        config = {"provider": "ollama", "model": "llama3.2", "base_url": "http://localhost:11434"}
 
         with patch("services.langchain_llm_service.ChatOllama") as mock_chat_ollama:
             mock_chat_ollama.return_value = MagicMock()
@@ -116,7 +103,7 @@ class TestLangChainLLMService:
                 failure_context="Test assertion failed",
                 check_name="Unit Tests",
                 pr_info={"title": "Test PR", "user": {"login": "testuser"}},
-                project_context={"framework": "pytest"}
+                project_context={"framework": "pytest"},
             )
 
             assert result["success"] is True
@@ -141,10 +128,7 @@ class TestLangChainLLMService:
             service = LangChainLLMService(config)
 
             result = await service.analyze_failure(
-                failure_context="Test failure",
-                check_name="CI",
-                pr_info={},
-                project_context={}
+                failure_context="Test failure", check_name="CI", pr_info={}, project_context={}
             )
 
             # Should fall back to unstructured parsing
@@ -164,10 +148,7 @@ class TestLangChainLLMService:
             service = LangChainLLMService(config)
 
             result = await service.analyze_failure(
-                failure_context="Test failure",
-                check_name="CI",
-                pr_info={},
-                project_context={}
+                failure_context="Test failure", check_name="CI", pr_info={}, project_context={}
             )
 
             assert result["success"] is False
@@ -198,7 +179,7 @@ class TestLangChainLLMService:
                 failure_info={"category": "security", "severity": "high"},
                 fix_attempts=3,
                 max_attempts=3,
-                project_context={"criticality": "high"}
+                project_context={"criticality": "high"},
             )
 
             assert result["should_escalate"] is True
@@ -217,12 +198,7 @@ class TestLangChainLLMService:
         with patch("services.langchain_llm_service.ChatOpenAI", return_value=mock_llm):
             service = LangChainLLMService(config)
 
-            result = await service.should_escalate(
-                failure_info={},
-                fix_attempts=2,
-                max_attempts=3,
-                project_context={}
-            )
+            result = await service.should_escalate(failure_info={}, fix_attempts=2, max_attempts=3, project_context={})
 
             # Should default to escalation on error
             assert result["should_escalate"] is True
@@ -236,13 +212,7 @@ class TestLangChainLLMService:
 
         mock_response = MagicMock()
         mock_response.content = "This is a test response"
-        mock_response.response_metadata = {
-            "token_usage": {
-                "prompt_tokens": 50,
-                "completion_tokens": 25,
-                "total_tokens": 75
-            }
-        }
+        mock_response.response_metadata = {"token_usage": {"prompt_tokens": 50, "completion_tokens": 25, "total_tokens": 75}}
 
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = mock_response
@@ -251,6 +221,7 @@ class TestLangChainLLMService:
             service = LangChainLLMService(config)
 
             from langchain_core.messages import HumanMessage
+
             messages = [HumanMessage(content="Test message")]
 
             result = await service.generate_response(messages)
@@ -272,8 +243,7 @@ class TestLangChainLLMService:
         """Test availability check for OpenAI without API key."""
         config = {"provider": "openai"}
 
-        with patch("services.langchain_llm_service.ChatOpenAI"), \
-             patch("os.getenv", return_value=None):
+        with patch("services.langchain_llm_service.ChatOpenAI"), patch("os.getenv", return_value=None):
             service = LangChainLLMService(config)
             assert service.is_available() is False
 
@@ -281,8 +251,7 @@ class TestLangChainLLMService:
         """Test availability check for Anthropic with environment key."""
         config = {"provider": "anthropic"}
 
-        with patch("services.langchain_llm_service.ChatAnthropic"), \
-             patch("os.getenv", return_value="env-key"):
+        with patch("services.langchain_llm_service.ChatAnthropic"), patch("os.getenv", return_value="env-key"):
             service = LangChainLLMService(config)
             assert service.is_available() is True
 
@@ -296,12 +265,7 @@ class TestLangChainLLMService:
 
     def test_get_provider_info(self):
         """Test provider info extraction."""
-        config = {
-            "provider": "openai",
-            "model": "gpt-4",
-            "api_key": "secret-key",
-            "temperature": 0.2
-        }
+        config = {"provider": "openai", "model": "gpt-4", "api_key": "secret-key", "temperature": 0.2}
 
         with patch("services.langchain_llm_service.ChatOpenAI"):
             service = LangChainLLMService(config)
@@ -391,8 +355,7 @@ class TestProviderErrors:
         """Test error when OpenAI API key is missing."""
         config = {"provider": "openai"}
 
-        with patch("services.langchain_llm_service.ChatOpenAI"), \
-             patch("os.getenv", return_value=None):
+        with patch("services.langchain_llm_service.ChatOpenAI"), patch("os.getenv", return_value=None):
             with pytest.raises(ValueError, match="OPENAI_API_KEY environment variable"):
                 LangChainLLMService(config)
 
@@ -400,7 +363,6 @@ class TestProviderErrors:
         """Test error when Anthropic API key is missing."""
         config = {"provider": "anthropic"}
 
-        with patch("services.langchain_llm_service.ChatAnthropic"), \
-             patch("os.getenv", return_value=None):
+        with patch("services.langchain_llm_service.ChatAnthropic"), patch("os.getenv", return_value=None):
             with pytest.raises(ValueError, match="ANTHROPIC_API_KEY environment variable"):
                 LangChainLLMService(config)
