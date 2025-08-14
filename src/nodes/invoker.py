@@ -25,12 +25,38 @@ async def claude_invoker_node(state: MonitorState) -> dict[str, Any]:
     repository = state["repository"]
     config = state["config"]
     analysis_results = state.get("analysis_results", [])
+    workflow_step = state.get("workflow_step", "unknown")
 
     # Get fixable issues
     fixable_issues = [result for result in analysis_results if result.get("fixable", False)]
 
     logger.debug(f"🔍 Claude invoker analyzing {len(analysis_results)} analysis results for {repository}")
+    logger.debug(f"⚙️ Current workflow step: {workflow_step}")
     logger.debug(f"🔧 Found {len(fixable_issues)} fixable issues")
+    
+    # Critical debugging: Check if analysis_results are missing for retries
+    if len(analysis_results) == 0:
+        logger.error(f"🚨 CRITICAL: No analysis_results found in Claude invoker for {repository}")
+        logger.error("🚨 This likely means retry attempts are bypassing the analyze_failures node")
+        logger.error(f"🚨 Workflow step: {workflow_step}")
+        
+        # Check if we have failed checks that should be analyzed first
+        active_prs = state.get("active_prs", {})
+        total_failed_checks = 0
+        for pr_number, pr_state in active_prs.items():
+            failed_checks = pr_state.get("failed_checks", [])
+            total_failed_checks += len(failed_checks)
+            if failed_checks:
+                logger.error(f"🚨 PR #{pr_number} has {len(failed_checks)} failed checks but no analysis results: {failed_checks}")
+        
+        logger.error(f"🚨 Total failed checks across all PRs: {total_failed_checks}")
+        logger.error("🚨 This indicates the workflow needs to run analysis before attempting fixes")
+        
+        return {
+            **state,
+            "error_message": "No analysis results available for fix attempts - need to analyze failures first",
+            "workflow_step": "analysis_required"
+        }
     
     # Log each analysis result for debugging
     for i, result in enumerate(analysis_results, 1):
@@ -221,10 +247,19 @@ def should_retry_or_escalate(state: MonitorState) -> str:
     config = state["config"]
     max_attempts = config.fix_limits.get("max_attempts", 3)
     repository = state.get("repository", "unknown")
+    workflow_step = state.get("workflow_step", "unknown")
+    error_message = state.get("error_message", "")
 
     logger.debug(f"🔄 Evaluating retry/escalation decision for {repository}")
     logger.debug(f"📊 Fix results received: {len(fix_results)} results")
     logger.debug(f"⚙️ Max attempts configured: {max_attempts}")
+    logger.debug(f"⚙️ Current workflow step: {workflow_step}")
+    
+    # Handle case where invoker detected missing analysis results
+    if workflow_step == "analysis_required":
+        logger.warning(f"🚨 Invoker requires analysis before attempting fixes: {error_message}")
+        logger.info(f"🔄 Routing back to analysis phase for {repository}")
+        return "retry_fixes"  # This will now route to prioritize_failures → analyze_failures
 
     # Check for successful fixes
     successful_fixes = [result for result in fix_results if result["success"]]

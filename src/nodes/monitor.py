@@ -121,9 +121,46 @@ def should_analyze_failures(state: MonitorState) -> str:
 async def prioritize_failures(state: MonitorState) -> dict[str, Any]:
     """Helper node to prioritize failed checks based on configuration."""
     config = state["config"]
+    repository = state.get("repository", "unknown")
     newly_failed_checks = state.get("newly_failed_checks", [])
+    workflow_step = state.get("workflow_step", "unknown")
+    
+    logger.debug(f"🎯 Prioritizing failures for {repository}, workflow_step: {workflow_step}")
+    logger.debug(f"📋 Newly failed checks: {len(newly_failed_checks)}")
+    
+    # For retries, we need to also consider existing failed checks that need re-analysis
+    all_failed_checks = newly_failed_checks.copy()
+    
+    if workflow_step == "analysis_required":
+        logger.info("🔄 Retry scenario: also prioritizing existing failed checks for re-analysis")
+        active_prs = state.get("active_prs", {})
+        
+        for pr_number, pr_state in active_prs.items():
+            failed_checks = pr_state.get("failed_checks", [])
+            for check_name in failed_checks:
+                # Create failure entry for existing failed check
+                check_info = pr_state.get("checks", {}).get(check_name, {})
+                existing_failure = {
+                    "pr_number": pr_number,
+                    "check_name": check_name,
+                    "check_info": check_info,
+                    "from_retry": True  # Mark as from retry for debugging
+                }
+                
+                # Avoid duplicates (newly failed checks take priority)
+                is_duplicate = any(
+                    f["pr_number"] == pr_number and f["check_name"] == check_name
+                    for f in newly_failed_checks
+                )
+                
+                if not is_duplicate:
+                    all_failed_checks.append(existing_failure)
+                    logger.debug(f"🔄 Added existing failed check for re-analysis: PR#{pr_number} - {check_name}")
+    
+    logger.info(f"🎯 Total checks to prioritize: {len(all_failed_checks)} ({len(newly_failed_checks)} new + {len(all_failed_checks) - len(newly_failed_checks)} existing)")
 
-    if not newly_failed_checks:
+    if not all_failed_checks:
+        logger.debug(f"⚠️ No failed checks to prioritize for {repository}")
         return state
 
     # Get priority configuration
@@ -133,7 +170,7 @@ async def prioritize_failures(state: MonitorState) -> dict[str, Any]:
     # Score each failed check
     prioritized_checks = []
 
-    for failure in newly_failed_checks:
+    for failure in all_failed_checks:
         pr_number = failure["pr_number"]
         check_name = failure["check_name"]
         pr_state = state["active_prs"][pr_number]

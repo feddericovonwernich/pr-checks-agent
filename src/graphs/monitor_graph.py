@@ -75,7 +75,7 @@ def create_monitor_graph(config, max_concurrent: int = 10, enable_tracing: bool 
         "attempt_fixes",
         should_retry_or_escalate,
         {
-            "retry_fixes": "attempt_fixes",  # Loop back for retries
+            "retry_fixes": "prioritize_failures",  # Go back to analysis for retries - don't bypass analysis!
             "escalate_to_human": "escalate_issues",
             "verify_fixes": "monitor_checks",  # Go back to monitoring
             "wait_for_next_poll": "wait_for_poll",
