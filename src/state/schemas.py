@@ -169,6 +169,7 @@ class MonitorState(TypedDict):
     last_error: str | None
 
     # Analysis
+    newly_failed_checks: list[dict[str, Any]]
     prioritized_failures: list[dict[str, Any]]
 
     # Metrics
