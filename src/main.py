@@ -4,6 +4,7 @@ LangGraph-powered GitHub PR monitoring and fixing agent
 """
 
 import asyncio
+import os
 import sys
 from typing import Any
 
@@ -57,6 +58,9 @@ def main(
     """PR Check Agent - Automated GitHub PR monitoring and fixing."""
     # Load environment variables
     load_dotenv()
+
+    # Read log level from environment variable, default to INFO
+    log_level = os.getenv("LOG_LEVEL", "INFO").upper()
 
     # Setup logging
     setup_logging(level=log_level, dev_mode=dev)
