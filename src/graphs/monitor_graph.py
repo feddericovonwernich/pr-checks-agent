@@ -268,6 +268,14 @@ async def run_monitoring_workflow(
                     state_summary[key] = value
             
             logger.debug(f"📊 State summary: {state_summary}")
+            
+            # CRITICAL: Log analysis_results specifically when we see them
+            if "analysis_results" in event:
+                analysis_results = event["analysis_results"]
+                logger.debug(f"🎯 DETECTED analysis_results in workflow event: {len(analysis_results)} results")
+                logger.debug(f"🎯 analysis_results content: {analysis_results}")
+            else:
+                logger.debug(f"⚠️ No analysis_results found in this workflow event")
 
             # Handle graceful shutdown signals here if needed
             

@@ -61,11 +61,14 @@ async def claude_invoker_node(state: MonitorState) -> dict[str, Any]:
         logger.error(f"🚨 Total failed checks across all PRs: {total_failed_checks}")
         logger.error("🚨 This indicates the workflow needs to run analysis before attempting fixes")
         
-        return {
+        returned_state = {
             **state,
             "error_message": "No analysis results available for fix attempts - need to analyze failures first",
             "workflow_step": "analysis_required"
         }
+        
+        logger.debug(f"🚨 Returning analysis_required state with workflow_step: {returned_state['workflow_step']}")
+        return returned_state
     
     # Log each analysis result for debugging
     for i, result in enumerate(analysis_results, 1):

@@ -127,6 +127,8 @@ async def prioritize_failures(state: MonitorState) -> dict[str, Any]:
     
     logger.debug(f"🎯 Prioritizing failures for {repository}, workflow_step: {workflow_step}")
     logger.debug(f"📋 Newly failed checks: {len(newly_failed_checks)}")
+    logger.debug(f"🔍 Full state keys in prioritize_failures: {list(state.keys())}")
+    logger.debug(f"🔍 Error message in state: {state.get('error_message', 'None')}")
     
     # For retries, we need to also consider existing failed checks that need re-analysis
     all_failed_checks = newly_failed_checks.copy()
