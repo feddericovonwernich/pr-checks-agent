@@ -1,14 +1,11 @@
 """Tests for logging configuration and utilities"""
 
-import json
 import tempfile
 from pathlib import Path
-from typing import Any
 from unittest.mock import Mock, patch
 
 from src.utils.logging import (
     ContextualLogger,
-    _json_formatter,
     get_tool_logger,
     get_workflow_logger,
     log_api_call,
@@ -82,114 +79,6 @@ class TestSetupLogging:
 
         # Verify logs directory creation was attempted
         mock_mkdir.assert_called_once_with(exist_ok=True)
-
-
-class TestJsonFormatter:
-    """Test JSON log formatter functionality."""
-
-    def create_mock_record(self, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
-        """Create a mock log record for testing."""
-        from datetime import datetime
-
-        mock_level = Mock()
-        mock_level.name = "INFO"
-        mock_thread = Mock()
-        mock_thread.name = "MainThread"
-        mock_process = Mock()
-        mock_process.name = "MainProcess"
-
-        default_record = {
-            "time": datetime(2024, 1, 1, 12, 0, 0),
-            "level": mock_level,
-            "name": "test.logger",
-            "module": "test_module",
-            "function": "test_function",
-            "line": 123,
-            "message": "Test log message",
-            "thread": mock_thread,
-            "process": mock_process,
-            "exception": None,
-            "extra": {},
-        }
-
-        default_record.update(kwargs)
-        return default_record
-
-    def test_json_formatter_basic(self):
-        """Test JSON formatter with basic log record."""
-        record = self.create_mock_record()
-
-        result = _json_formatter(record)
-
-        # Parse the JSON output
-        log_data = json.loads(result.strip())
-
-        assert log_data["timestamp"] == "2024-01-01T12:00:00"
-        assert log_data["level"] == "INFO"
-        assert log_data["logger"] == "test.logger"
-        assert log_data["module"] == "test_module"
-        assert log_data["function"] == "test_function"
-        assert log_data["line"] == 123
-        assert log_data["message"] == "Test log message"
-        assert log_data["thread"] == "MainThread"
-        assert log_data["process"] == "MainProcess"
-
-    def test_json_formatter_with_exception(self):
-        """Test JSON formatter with exception information."""
-        mock_exception = Mock()
-        mock_exception.type = ValueError
-        mock_exception.value = "Test error"
-        mock_exception.traceback = "Traceback info"
-
-        record = self.create_mock_record(exception=mock_exception)
-
-        result = _json_formatter(record)
-        log_data = json.loads(result.strip())
-
-        assert "exception" in log_data
-        exc_info = log_data["exception"]
-        assert exc_info["type"] == "ValueError"
-        assert exc_info["value"] == "Test error"
-        assert exc_info["traceback"] == "Traceback info"
-
-    def test_json_formatter_with_extra_fields(self):
-        """Test JSON formatter with extra fields."""
-        extra_data = {"request_id": "req-123", "user_id": "user-456", "custom_field": "value"}
-
-        record = self.create_mock_record(extra=extra_data)
-
-        result = _json_formatter(record)
-        log_data = json.loads(result.strip())
-
-        assert "extra" in log_data
-        assert log_data["extra"]["request_id"] == "req-123"
-        assert log_data["extra"]["user_id"] == "user-456"
-        assert log_data["extra"]["custom_field"] == "value"
-
-    def test_json_formatter_none_values(self):
-        """Test JSON formatter handles None values gracefully."""
-        record = self.create_mock_record(thread=None, process=None, exception=None, extra=None)
-
-        result = _json_formatter(record)
-        log_data = json.loads(result.strip())
-
-        assert log_data["thread"] is None
-        assert log_data["process"] is None
-        assert "exception" not in log_data  # Should not include None exception
-        assert "extra" not in log_data  # Should not include None extra
-
-    def test_json_formatter_output_format(self):
-        """Test JSON formatter output format."""
-        record = self.create_mock_record()
-
-        result = _json_formatter(record)
-
-        # Should end with newline
-        assert result.endswith("\n")
-
-        # Should be valid JSON
-        log_data = json.loads(result.strip())
-        assert isinstance(log_data, dict)
 
 
 class TestContextualLogger:

@@ -3,6 +3,7 @@ Handles all GitHub API interactions as a LangGraph tool
 """
 
 import asyncio
+import fnmatch
 import os
 from typing import Any
 
@@ -85,11 +86,32 @@ class GitHubTool(BaseTool):
             repo = self.github.get_repo(repository)
             pulls = repo.get_pulls(state="open")
 
+            logger.debug(f"Fetching PRs for {repository} with branch filter: {branch_filter}")
+
             pr_list = []
+            total_prs = 0
             for pr in pulls:
+                total_prs += 1
+                logger.debug(f"Found PR #{pr.number}: '{pr.title}' (base: {pr.base.ref}, head: {pr.head.ref})")
+
                 # Apply branch filter if specified
-                if branch_filter and pr.base.ref not in branch_filter:
-                    continue
+                if branch_filter:
+                    # Check if the head branch (source branch) matches any filter pattern
+                    branch_matches = False
+                    for pattern in branch_filter:
+                        if "*" in pattern:
+                            # Handle wildcard patterns
+                            if fnmatch.fnmatch(pr.head.ref, pattern):
+                                branch_matches = True
+                                break
+                        elif pr.head.ref == pattern:
+                            # Exact match
+                            branch_matches = True
+                            break
+
+                    if not branch_matches:
+                        logger.debug(f"Skipping PR #{pr.number} - head branch '{pr.head.ref}' doesn't match filters")
+                        continue
 
                 pr_info = PRInfo(
                     number=pr.number,

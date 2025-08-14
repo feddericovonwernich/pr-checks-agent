@@ -163,4 +163,5 @@ async def prioritize_failures(state: MonitorState) -> dict[str, Any]:
 
     logger.info(f"Prioritized {len(prioritized_checks)} failed checks")
 
-    return {**state, "prioritized_failures": prioritized_checks}
+    # Clear newly_failed_checks after processing to prevent reprocessing
+    return {**state, "prioritized_failures": prioritized_checks, "newly_failed_checks": []}

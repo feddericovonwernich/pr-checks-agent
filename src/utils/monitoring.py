@@ -2,12 +2,15 @@
 Implements metrics collection, health checks, and web dashboard
 """
 
+import os
 from datetime import datetime
 from typing import Any, TypedDict
 
 from aiohttp import web
 from loguru import logger
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest
+
+from src.state.persistence import StatePersistence
 
 
 class RepositoryStats(TypedDict, total=False):
@@ -88,6 +91,14 @@ class MonitoringServer:
             "health_status": "healthy",
         }
 
+        # Initialize Redis connection for health checks
+        self.redis_persistence: StatePersistence | None = None
+        try:
+            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+            self.redis_persistence = StatePersistence(redis_url)
+        except Exception as e:
+            logger.warning(f"Redis not available for health checks: {e}")
+
     def setup_routes(self) -> None:
         """Setup HTTP routes."""
         # Health check endpoint
@@ -109,16 +120,36 @@ class MonitoringServer:
 
     async def health_check(self, request: web.Request) -> web.Response:
         """Health check endpoint."""
+        # Check Redis health if available
+        redis_health = {"status": "not_configured"}
+        if self.redis_persistence:
+            redis_health = self.redis_persistence.health_check()
+
+        # Determine overall health status
+        # Respect manually set unhealthy status, otherwise determine from dependencies
+        if self.stats["health_status"] == "unhealthy":
+            overall_status = "unhealthy"
+        elif redis_health["status"] == "unhealthy":
+            overall_status = "degraded"  # Service can still run without Redis, but with reduced functionality
+        else:
+            overall_status = "healthy"
+
+        # Update stats health status only if not manually set to unhealthy
+        if self.stats["health_status"] != "unhealthy":
+            self.stats["health_status"] = overall_status
+
         health_data = {
-            "status": self.stats["health_status"],
+            "status": overall_status,
             "timestamp": datetime.now().isoformat(),
             "uptime_seconds": (datetime.now() - self.stats["start_time"]).total_seconds(),
             "version": "0.1.0",
             "repositories_monitored": len(self.stats["repositories"]),
             "recent_errors": len([event for event in self.stats["recent_events"][-10:] if event.get("type") == "error"]),
+            "dependencies": {"redis": redis_health},
         }
 
-        status_code = 200 if health_data["status"] == "healthy" else 503
+        # Return 200 for healthy, 200 for degraded (service still works), 503 for unhealthy
+        status_code = 200 if overall_status in ["healthy", "degraded"] else 503
 
         return web.json_response(health_data, status=status_code)
 

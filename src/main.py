@@ -4,6 +4,7 @@ LangGraph-powered GitHub PR monitoring and fixing agent
 """
 
 import asyncio
+import os
 import sys
 from typing import Any
 
@@ -12,7 +13,7 @@ import uvloop
 from dotenv import load_dotenv
 from loguru import logger
 
-from graphs.monitor_graph import create_monitor_graph
+from graphs.monitor_graph import create_initial_state, create_monitor_graph
 from utils.config import Config
 from utils.logging import setup_logging
 from utils.monitoring import start_monitoring_server
@@ -57,6 +58,12 @@ def main(
     """PR Check Agent - Automated GitHub PR monitoring and fixing."""
     # Load environment variables
     load_dotenv()
+
+    # Check for LOG_LEVEL in environment if not specified via command line
+    if log_level == "INFO":  # Default value, check if env var exists
+        env_log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+        if env_log_level in ["DEBUG", "INFO", "WARNING", "ERROR"]:
+            log_level = env_log_level
 
     # Setup logging
     setup_logging(level=log_level, dev_mode=dev)
@@ -137,13 +144,15 @@ async def async_main(
     for repo_config in config.repositories:
         logger.info(f"Starting monitoring for {repo_config.owner}/{repo_config.repo}")
 
-        # Create initial workflow state
-        initial_state = {
-            "repository": f"{repo_config.owner}/{repo_config.repo}",
-            "config": repo_config,
-            "active_prs": {},
-            "workflow_semaphore": workflow_semaphore,
-        }
+        # Create initial workflow state using the proper initialization function
+        initial_state = create_initial_state(
+            repository=f"{repo_config.owner}/{repo_config.repo}",
+            config=repo_config,
+            polling_interval=300,  # 5 minutes default
+            workflow_semaphore=workflow_semaphore,
+        )
+        # Add dry_run flag
+        initial_state["dry_run"] = dry_run
 
         # Start monitoring workflow for this repository
         task = asyncio.create_task(run_repository_workflow(graph, initial_state, repo_config))
