@@ -309,7 +309,9 @@ async def _get_failure_context(github_tool: GitHubTool, repository: str, check_i
 def should_attempt_fixes(state: MonitorState) -> str:
     """LangGraph edge function to determine if we should attempt fixes."""
     analysis_results = state.get("analysis_results", [])
-    logger.debug(f"🤔 Evaluating whether to attempt fixes for {len(analysis_results)} analysis results")
+    repository = state.get("repository", "unknown")
+    
+    logger.debug(f"🤔 Evaluating whether to attempt fixes for {len(analysis_results)} analysis results in {repository}")
 
     # Check if any issues are fixable
     fixable_issues = [result for result in analysis_results if result.get("fixable", False)]
@@ -318,25 +320,48 @@ def should_attempt_fixes(state: MonitorState) -> str:
     logger.debug("📊 Fix evaluation results:")
     logger.debug(f"  🔧 Fixable issues: {len(fixable_issues)}")
     logger.debug(f"  🚫 Unfixable issues: {len(unfixable_issues)}")
+    
+    # Log detailed information about each analysis result
+    for i, result in enumerate(analysis_results, 1):
+        check_name = result.get("check_name", "Unknown")
+        pr_number = result.get("pr_number", "Unknown")
+        fixable = result.get("fixable", False)
+        analysis_data = result.get("analysis", {})
+        
+        logger.debug(f"📋 Analysis #{i}: PR#{pr_number} - {check_name}")
+        logger.debug(f"  🔧 Fixable: {fixable}")
+        logger.debug(f"  📝 Analysis keys: {list(analysis_data.keys()) if isinstance(analysis_data, dict) else 'not a dict'}")
+        
+        if isinstance(analysis_data, dict):
+            logger.debug(f"  📄 Analysis text: {analysis_data.get('analysis', 'No analysis')[:150]}...")
+            logger.debug(f"  🎯 Suggested actions: {len(analysis_data.get('suggested_actions', []))} actions")
+            logger.debug(f"  📊 Confidence: {analysis_data.get('confidence', 'N/A')}")
+        else:
+            logger.debug(f"  ⚠️ Analysis data is not a dict: {type(analysis_data)} - {analysis_data}")
 
     if fixable_issues:
-        logger.info(f"Found {len(fixable_issues)} fixable issues, proceeding to fix attempts")
+        logger.info(f"✅ Found {len(fixable_issues)} fixable issues, proceeding to fix attempts")
         logger.debug(f"✅ Decision: attempt_fixes (found {len(fixable_issues)} fixable issues)")
         for i, issue in enumerate(fixable_issues, 1):
             check_name = issue.get("check_name", "Unknown")
-            analysis_text = issue.get("analysis", {}).get("analysis", "No analysis")[:100]
-            logger.debug(f"  🎯 Fixable #{i}: {check_name} - {analysis_text}...")
+            pr_number = issue.get("pr_number", "Unknown")
+            analysis_data = issue.get("analysis", {})
+            analysis_text = analysis_data.get("analysis", "No analysis") if isinstance(analysis_data, dict) else str(analysis_data)
+            logger.debug(f"  🎯 Fixable #{i}: PR#{pr_number} - {check_name} - {analysis_text[:100]}...")
         return "attempt_fixes"
 
     # Check if any issues need escalation
     if unfixable_issues:
-        logger.info(f"Found {len(unfixable_issues)} unfixable issues, proceeding to escalation")
+        logger.info(f"🚫 Found {len(unfixable_issues)} unfixable issues, proceeding to escalation")
         logger.debug(f"❌ Decision: escalate_to_human (found {len(unfixable_issues)} unfixable issues)")
         for i, issue in enumerate(unfixable_issues, 1):
             check_name = issue.get("check_name", "Unknown")
-            analysis_text = issue.get("analysis", {}).get("analysis", "No analysis")[:100]
-            logger.debug(f"  🚫 Unfixable #{i}: {check_name} - {analysis_text}...")
+            pr_number = issue.get("pr_number", "Unknown")
+            analysis_data = issue.get("analysis", {})
+            analysis_text = analysis_data.get("analysis", "No analysis") if isinstance(analysis_data, dict) else str(analysis_data)
+            logger.debug(f"  🚫 Unfixable #{i}: PR#{pr_number} - {check_name} - {analysis_text[:100]}...")
         return "escalate_to_human"
 
     logger.debug("⏳ Decision: wait_for_next_poll (no issues found)")
+    logger.warning(f"⚠️ No fixable or unfixable issues found in {len(analysis_results)} analysis results - this might indicate an analysis problem")
     return "wait_for_next_poll"

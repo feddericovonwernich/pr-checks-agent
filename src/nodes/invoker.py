@@ -29,8 +29,27 @@ async def claude_invoker_node(state: MonitorState) -> dict[str, Any]:
     # Get fixable issues
     fixable_issues = [result for result in analysis_results if result.get("fixable", False)]
 
+    logger.debug(f"🔍 Claude invoker analyzing {len(analysis_results)} analysis results for {repository}")
+    logger.debug(f"🔧 Found {len(fixable_issues)} fixable issues")
+    
+    # Log each analysis result for debugging
+    for i, result in enumerate(analysis_results, 1):
+        check_name = result.get("check_name", "Unknown")
+        pr_number = result.get("pr_number", "Unknown")
+        fixable = result.get("fixable", False)
+        logger.debug(f"  📋 Result #{i}: PR#{pr_number} - {check_name} - Fixable: {fixable}")
+        
+        # Log the analysis structure
+        analysis_data = result.get("analysis", {})
+        if isinstance(analysis_data, dict):
+            logger.debug(f"    📝 Analysis keys: {list(analysis_data.keys())}")
+            logger.debug(f"    📄 Analysis: {analysis_data.get('analysis', 'No analysis')[:100]}...")
+        else:
+            logger.debug(f"    ⚠️ Analysis data type: {type(analysis_data)} - {analysis_data}")
+
     if not fixable_issues:
-        logger.debug(f"No fixable issues for {repository}")
+        logger.debug(f"❌ No fixable issues for {repository}")
+        logger.warning(f"⚠️ All {len(analysis_results)} analysis results were marked as unfixable - check LLM analysis")
         return state
 
     logger.info(f"Attempting fixes for {len(fixable_issues)} issues in {repository}")
@@ -201,11 +220,17 @@ def should_retry_or_escalate(state: MonitorState) -> str:
     fix_results = state.get("fix_results", [])
     config = state["config"]
     max_attempts = config.fix_limits.get("max_attempts", 3)
+    repository = state.get("repository", "unknown")
+
+    logger.debug(f"🔄 Evaluating retry/escalation decision for {repository}")
+    logger.debug(f"📊 Fix results received: {len(fix_results)} results")
+    logger.debug(f"⚙️ Max attempts configured: {max_attempts}")
 
     # Check for successful fixes
     successful_fixes = [result for result in fix_results if result["success"]]
     if successful_fixes:
-        logger.info(f"{len(successful_fixes)} fixes were successful, monitoring for verification")
+        logger.info(f"✅ {len(successful_fixes)} fixes were successful, monitoring for verification")
+        logger.debug(f"🎯 Successful fixes: {[f['check_name'] for f in successful_fixes]}")
         return "verify_fixes"
 
     # Check for issues that need retrying
@@ -213,29 +238,52 @@ def should_retry_or_escalate(state: MonitorState) -> str:
     need_retry = []
     need_escalation = []
 
+    logger.debug(f"📝 Analyzing {len(active_prs)} active PRs for retry/escalation needs")
+
     for pr_number, pr_state in active_prs.items():
         failed_checks = pr_state.get("failed_checks", [])
         fix_attempts = pr_state.get("fix_attempts", {})
+        workflow_step = pr_state.get("workflow_step", "unknown")
+        
+        logger.debug(f"🔍 PR #{pr_number}: {len(failed_checks)} failed checks, workflow_step: {workflow_step}")
+        logger.debug(f"📋 Failed checks: {failed_checks}")
+        logger.debug(f"🔧 Fix attempts keys: {list(fix_attempts.keys())}")
 
         for check_name in failed_checks:
             attempts = fix_attempts.get(check_name, [])
+            logger.debug(f"  📌 Check '{check_name}': {len(attempts)}/{max_attempts} attempts")
+            
             if len(attempts) < max_attempts:
                 # Still have attempts remaining
                 last_attempt = attempts[-1] if attempts else None
+                last_status = last_attempt.get("status") if last_attempt else "no_attempts"
+                
+                logger.debug(f"    🔄 Can retry - Last attempt status: {last_status}")
+                
                 if not last_attempt or last_attempt.get("status") == FixAttemptStatus.FAILURE.value:
                     need_retry.append((pr_number, check_name))
+                    logger.debug(f"    + Added to retry list: PR #{pr_number} - {check_name}")
             else:
                 # Max attempts reached, needs escalation
+                logger.debug("    🚨 Max attempts reached - needs escalation")
                 need_escalation.append((pr_number, check_name))
+                logger.debug(f"    + Added to escalation list: PR #{pr_number} - {check_name}")
+
+    logger.debug("📊 Decision analysis results:")
+    logger.debug(f"  🔄 Need retry: {len(need_retry)} checks")
+    logger.debug(f"  🚨 Need escalation: {len(need_escalation)} checks")
 
     if need_retry:
-        logger.info(f"Found {len(need_retry)} checks that need retry")
+        logger.info(f"🔄 Found {len(need_retry)} checks that need retry")
+        logger.debug(f"🔄 Retry list: {need_retry}")
         return "retry_fixes"
 
     if need_escalation:
-        logger.info(f"Found {len(need_escalation)} checks that need escalation")
+        logger.info(f"🚨 Found {len(need_escalation)} checks that need escalation")
+        logger.debug(f"🚨 Escalation list: {need_escalation}")
         return "escalate_to_human"
 
+    logger.debug("⏳ No retries or escalations needed - waiting for next poll")
     return "wait_for_next_poll"
 
 

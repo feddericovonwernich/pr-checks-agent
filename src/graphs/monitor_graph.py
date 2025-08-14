@@ -215,10 +215,40 @@ async def run_monitoring_workflow(
 
     # Add dry_run flag to state
     initial_state["dry_run"] = dry_run
+    
+    # Track workflow execution for debugging
+    execution_count = 0
+    last_step = None
+    step_counter = {}
 
     try:
         # Run the workflow
         async for event in graph.astream(initial_state):  # type: ignore[attr-defined]
+            execution_count += 1
+            
+            # Extract the current step from the event
+            current_step = None
+            for key in event.keys():
+                if key in ["scan_repository", "monitor_checks", "prioritize_failures",
+                          "analyze_failures", "attempt_fixes", "escalate_issues",
+                          "wait_for_poll", "handle_errors", "cleanup_state"]:
+                    current_step = key
+                    break
+            
+            if current_step:
+                step_counter[current_step] = step_counter.get(current_step, 0) + 1
+                
+                # Log workflow step transitions with execution tracking
+                logger.debug(f"🔄 Workflow step {execution_count}: {current_step} (#{step_counter[current_step]})")
+                
+                # Detect potential loops
+                if step_counter[current_step] > 50:  # Arbitrary threshold
+                    logger.error(f"🚨 Potential infinite loop detected in {repository}: step '{current_step}' executed {step_counter[current_step]} times")
+                    logger.error(f"📊 Step execution counts: {step_counter}")
+                    break
+                
+                last_step = current_step
+            
             # Log significant events
             if "error" in event:
                 logger.error(f"Workflow error in {repository}: {event['error']}")
@@ -226,9 +256,25 @@ async def run_monitoring_workflow(
                 step = event.get("workflow_step", "")
                 if step in ["analyzed", "escalated", "fix_successful"]:
                     logger.info(f"Workflow milestone in {repository}: {step}")
+            
+            # Log state transitions for debugging loops
+            state_summary = {}
+            for key, value in event.items():
+                if key == "active_prs":
+                    state_summary[key] = f"{len(value)} PRs" if isinstance(value, dict) else str(value)
+                elif key == "analysis_results" or key == "fix_results":
+                    state_summary[key] = f"{len(value)} results" if isinstance(value, list) else str(value)
+                elif key in ["workflow_step", "repository", "last_error"]:
+                    state_summary[key] = value
+            
+            logger.debug(f"📊 State summary: {state_summary}")
 
             # Handle graceful shutdown signals here if needed
+            
+        logger.info(f"✅ Workflow completed for {repository} after {execution_count} steps")
 
     except Exception as e:
-        logger.error(f"Monitoring workflow failed for {repository}: {e}")
+        logger.error(f"💥 Monitoring workflow failed for {repository} after {execution_count} steps: {e}")
+        logger.error(f"📊 Final step execution counts: {step_counter}")
+        logger.error(f"🔚 Last successful step: {last_step}")
         raise
