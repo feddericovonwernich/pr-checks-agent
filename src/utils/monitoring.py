@@ -126,12 +126,17 @@ class MonitoringServer:
             redis_health = self.redis_persistence.health_check()
 
         # Determine overall health status
-        overall_status = "healthy"
-        if redis_health["status"] == "unhealthy":
+        # Respect manually set unhealthy status, otherwise determine from dependencies
+        if self.stats["health_status"] == "unhealthy":
+            overall_status = "unhealthy"
+        elif redis_health["status"] == "unhealthy":
             overall_status = "degraded"  # Service can still run without Redis, but with reduced functionality
+        else:
+            overall_status = "healthy"
 
-        # Update stats health status
-        self.stats["health_status"] = overall_status
+        # Update stats health status only if not manually set to unhealthy
+        if self.stats["health_status"] != "unhealthy":
+            self.stats["health_status"] = overall_status
 
         health_data = {
             "status": overall_status,

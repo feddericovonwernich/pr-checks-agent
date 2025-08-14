@@ -125,13 +125,13 @@ class TestGitHubTool:
         mock_github = MagicMock()
         mock_repo = MagicMock()
 
-        # Create PRs with different base branches
+        # Create PRs with different head branches (source branches)
         mock_pr_main = MagicMock()
         mock_pr_main.base.ref = "main"
         mock_pr_main.number = 1
-        mock_pr_main.title = "Main PR"
+        mock_pr_main.title = "Main feature PR"
         mock_pr_main.user.login = "user1"
-        mock_pr_main.head.ref = "feature1"
+        mock_pr_main.head.ref = "main-feature"  # Head branch to match filter
         mock_pr_main.html_url = "https://github.com/owner/repo/pull/1"
         mock_pr_main.created_at = datetime.now()
         mock_pr_main.updated_at = datetime.now()
@@ -139,11 +139,11 @@ class TestGitHubTool:
         mock_pr_main.mergeable = True
 
         mock_pr_develop = MagicMock()
-        mock_pr_develop.base.ref = "develop"
+        mock_pr_develop.base.ref = "main"
         mock_pr_develop.number = 2
-        mock_pr_develop.title = "Develop PR"
+        mock_pr_develop.title = "Develop feature PR"
         mock_pr_develop.user.login = "user2"
-        mock_pr_develop.head.ref = "feature2"
+        mock_pr_develop.head.ref = "develop-feature"  # Head branch to match filter
         mock_pr_develop.html_url = "https://github.com/owner/repo/pull/2"
         mock_pr_develop.created_at = datetime.now()
         mock_pr_develop.updated_at = datetime.now()
@@ -151,11 +151,11 @@ class TestGitHubTool:
         mock_pr_develop.mergeable = True
 
         mock_pr_other = MagicMock()
-        mock_pr_other.base.ref = "staging"
+        mock_pr_other.base.ref = "main"
         mock_pr_other.number = 3
-        mock_pr_other.title = "Staging PR"
+        mock_pr_other.title = "Other feature PR"
         mock_pr_other.user.login = "user3"
-        mock_pr_other.head.ref = "feature3"
+        mock_pr_other.head.ref = "other-feature"  # Head branch that won't match filter
         mock_pr_other.html_url = "https://github.com/owner/repo/pull/3"
         mock_pr_other.created_at = datetime.now()
         mock_pr_other.updated_at = datetime.now()
@@ -167,16 +167,16 @@ class TestGitHubTool:
         mock_repo.get_pulls.return_value = [mock_pr_main, mock_pr_develop, mock_pr_other]
 
         tool = GitHubTool()
-        result = tool._run(operation="get_prs", repository="owner/repo", branch_filter=["main", "develop"])
+        result = tool._run(operation="get_prs", repository="owner/repo", branch_filter=["main-feature", "develop-feature"])
 
         assert result["success"] is True
-        assert result["count"] == 2  # Only main and develop PRs
+        assert result["count"] == 2  # Only PRs with matching head branches
 
-        # Verify only filtered PRs are returned
-        returned_branches = [pr["base_branch"] for pr in result["prs"]]
-        assert "main" in returned_branches
-        assert "develop" in returned_branches
-        assert "staging" not in returned_branches
+        # Verify only filtered PRs are returned (now checking head branch)
+        returned_head_branches = [pr["branch"] for pr in result["prs"]]
+        assert "main-feature" in returned_head_branches
+        assert "develop-feature" in returned_head_branches
+        assert "other-feature" not in returned_head_branches
 
     @patch.dict("os.environ", {"GITHUB_TOKEN": "test_token"})
     @patch("src.tools.github_tool.Github")

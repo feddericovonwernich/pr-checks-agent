@@ -59,8 +59,11 @@ def main(
     # Load environment variables
     load_dotenv()
 
-    # Read log level from environment variable, default to INFO
-    log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+    # Check for LOG_LEVEL in environment if not specified via command line
+    if log_level == "INFO":  # Default value, check if env var exists
+        env_log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+        if env_log_level in ["DEBUG", "INFO", "WARNING", "ERROR"]:
+            log_level = env_log_level
 
     # Setup logging
     setup_logging(level=log_level, dev_mode=dev)
