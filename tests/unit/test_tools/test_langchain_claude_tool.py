@@ -1,9 +1,10 @@
 """Tests for LangChain Claude Tool"""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from tools.langchain_claude_tool import LangChainClaudeTool, LangChainClaudeInput
+import pytest
+
+from tools.langchain_claude_tool import LangChainClaudeInput, LangChainClaudeTool
 
 
 class TestLangChainClaudeTool:
@@ -13,10 +14,10 @@ class TestLangChainClaudeTool:
         """Test tool initialization in production mode."""
         with patch("tools.langchain_claude_tool.ChatAnthropic") as mock_anthropic:
             mock_anthropic.return_value = MagicMock()
-            
+
             with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
                 tool = LangChainClaudeTool(dry_run=False)
-                
+
                 assert tool.dry_run is False
                 assert tool.claude_llm is not None
                 mock_anthropic.assert_called_once()
@@ -24,7 +25,7 @@ class TestLangChainClaudeTool:
     def test_tool_initialization_dry_run(self):
         """Test tool initialization in dry run mode."""
         tool = LangChainClaudeTool(dry_run=True)
-        
+
         assert tool.dry_run is True
         assert tool.claude_llm is None
 
@@ -45,10 +46,10 @@ class TestLangChainClaudeTool:
         """Test tool initialization with custom model."""
         with patch("tools.langchain_claude_tool.ChatAnthropic") as mock_anthropic:
             mock_anthropic.return_value = MagicMock()
-            
+
             with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
                 tool = LangChainClaudeTool(dry_run=False, model="claude-3-haiku-20240307")
-                
+
                 assert tool.model == "claude-3-haiku-20240307"
                 # Verify ChatAnthropic was called with correct model
                 call_kwargs = mock_anthropic.call_args[1]
@@ -58,7 +59,7 @@ class TestLangChainClaudeTool:
     async def test_analyze_failure_dry_run(self):
         """Test failure analysis in dry run mode."""
         tool = LangChainClaudeTool(dry_run=True)
-        
+
         result = await tool._arun(
             operation="analyze_failure",
             failure_context="Test failure",
@@ -66,7 +67,7 @@ class TestLangChainClaudeTool:
             pr_info={"title": "Test PR"},
             project_context={}
         )
-        
+
         assert result["success"] is True
         assert "Mock analysis" in result["analysis"]
         assert result["fixable"] is True
@@ -76,7 +77,7 @@ class TestLangChainClaudeTool:
     async def test_fix_issue_dry_run(self):
         """Test fix issue in dry run mode."""
         tool = LangChainClaudeTool(dry_run=True)
-        
+
         result = await tool._arun(
             operation="fix_issue",
             failure_context="Test failure",
@@ -85,7 +86,7 @@ class TestLangChainClaudeTool:
             project_context={},
             repository_path="/tmp/test"
         )
-        
+
         assert result["success"] is True
         assert "Mock fix" in result["fix_description"]
         assert len(result["files_modified"]) > 0
@@ -102,14 +103,14 @@ class TestLangChainClaudeTool:
             "side_effects": ["May affect related tests"],
             "confidence": 0.9
         }"""
-        
+
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = mock_response
-        
+
         with patch("tools.langchain_claude_tool.ChatAnthropic", return_value=mock_llm):
             with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
                 tool = LangChainClaudeTool(dry_run=False)
-                
+
                 result = await tool._arun(
                     operation="analyze_failure",
                     failure_context="AssertionError: expected 5 but got 3",
@@ -123,7 +124,7 @@ class TestLangChainClaudeTool:
                     },
                     project_context={"framework": "pytest", "language": "Python"}
                 )
-                
+
                 assert result["success"] is True
                 assert result["fixable"] is True
                 assert result["confidence"] == 0.9
@@ -135,14 +136,14 @@ class TestLangChainClaudeTool:
         """Test analysis fallback when structured parsing fails."""
         mock_response = MagicMock()
         mock_response.content = "The issue can be fixed automatically by updating the test assertion"
-        
+
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = mock_response
-        
+
         with patch("tools.langchain_claude_tool.ChatAnthropic", return_value=mock_llm):
             with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
                 tool = LangChainClaudeTool(dry_run=False)
-                
+
                 result = await tool._arun(
                     operation="analyze_failure",
                     failure_context="Test failure",
@@ -150,7 +151,7 @@ class TestLangChainClaudeTool:
                     pr_info={},
                     project_context={}
                 )
-                
+
                 # Should fallback to heuristic parsing
                 assert result["success"] is True
                 assert result["fixable"] is True  # "can be fixed" is in the response
@@ -171,9 +172,9 @@ class TestLangChainClaudeTool:
                         "git_diff": "diff --git a/tests/test_calculation.py...",
                         "duration_seconds": 3.5
                     }
-                    
+
                     tool = LangChainClaudeTool(dry_run=False)
-                    
+
                     result = await tool._arun(
                         operation="fix_issue",
                         failure_context="AssertionError in test_add",
@@ -182,7 +183,7 @@ class TestLangChainClaudeTool:
                         project_context={"language": "Python"},
                         repository_path="/tmp/repo"
                     )
-                    
+
                     assert result["success"] is True
                     assert "Fixed test assertion" in result["fix_description"]
                     assert len(result["files_modified"]) == 2
@@ -200,9 +201,9 @@ class TestLangChainClaudeTool:
                         "error": "Claude CLI execution failed",
                         "duration_seconds": 1.0
                     }
-                    
+
                     tool = LangChainClaudeTool(dry_run=False)
-                    
+
                     result = await tool._arun(
                         operation="fix_issue",
                         failure_context="Test failure",
@@ -211,7 +212,7 @@ class TestLangChainClaudeTool:
                         project_context={},
                         repository_path="/tmp"
                     )
-                    
+
                     # Should return CLI error
                     assert result["success"] is False
                     assert "Claude CLI execution failed" in result.get("error", "")
@@ -220,7 +221,7 @@ class TestLangChainClaudeTool:
     async def test_unknown_operation_error(self):
         """Test error handling for unknown operation."""
         tool = LangChainClaudeTool(dry_run=True)
-        
+
         result = await tool._arun(
             operation="unknown_operation",
             failure_context="Test",
@@ -228,7 +229,7 @@ class TestLangChainClaudeTool:
             pr_info={},
             project_context={}
         )
-        
+
         assert result["success"] is False
         assert "Unknown operation" in result["error"]
 
@@ -237,11 +238,11 @@ class TestLangChainClaudeTool:
         """Test error handling when LLM call fails."""
         mock_llm = AsyncMock()
         mock_llm.ainvoke.side_effect = Exception("API Error")
-        
+
         with patch("tools.langchain_claude_tool.ChatAnthropic", return_value=mock_llm):
             with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
                 tool = LangChainClaudeTool(dry_run=False)
-                
+
                 result = await tool._arun(
                     operation="analyze_failure",
                     failure_context="Test failure",
@@ -249,14 +250,14 @@ class TestLangChainClaudeTool:
                     pr_info={},
                     project_context={}
                 )
-                
+
                 assert result["success"] is False
                 assert "API Error" in result["error"]
 
     def test_heuristic_is_fixable_positive(self):
         """Test heuristic fixability detection - positive cases."""
         tool = LangChainClaudeTool(dry_run=True)
-        
+
         # Test positive indicators
         positive_cases = [
             "This can be fixed automatically",
@@ -264,14 +265,14 @@ class TestLangChainClaudeTool:
             "Missing import can be resolved",
             "Formatting issue that needs correction"
         ]
-        
+
         for content in positive_cases:
             assert tool._heuristic_is_fixable(content) is True
 
     def test_heuristic_is_fixable_negative(self):
         """Test heuristic fixability detection - negative cases."""
         tool = LangChainClaudeTool(dry_run=True)
-        
+
         # Test negative indicators
         negative_cases = [
             "This cannot be fixed automatically",
@@ -279,14 +280,14 @@ class TestLangChainClaudeTool:
             "Requires manual intervention and design changes",
             "Complex logic problems need human review"
         ]
-        
+
         for content in negative_cases:
             assert tool._heuristic_is_fixable(content) is False
 
     def test_extract_actions_heuristic(self):
         """Test heuristic action extraction."""
         tool = LangChainClaudeTool(dry_run=True)
-        
+
         content = """
         To fix this issue:
         - Update the test assertion
@@ -294,12 +295,12 @@ class TestLangChainClaudeTool:
         * Verify the calculation logic
         1. Run the test suite
         2. Review the implementation
-        
+
         Some other text that should be ignored.
         """
-        
+
         actions = tool._extract_actions_heuristic(content)
-        
+
         assert len(actions) == 5
         assert "Update the test assertion" in actions
         assert "Check the input data" in actions
@@ -318,7 +319,7 @@ class TestLangChainClaudeTool:
         tool = LangChainClaudeTool(dry_run=True)
         context = {"language": "Python", "framework": "Django", "testing": "pytest"}
         result = tool._format_project_context(context)
-        
+
         assert "- language: Python" in result
         assert "- framework: Django" in result
         assert "- testing: pytest" in result
@@ -327,9 +328,9 @@ class TestLangChainClaudeTool:
     async def test_health_check_dry_run(self):
         """Test health check in dry run mode."""
         tool = LangChainClaudeTool(dry_run=True)
-        
+
         result = await tool.health_check()
-        
+
         assert result["status"] == "healthy"
         assert result["mode"] == "dry_run"
         assert result["langchain_api"] == "available"
@@ -340,10 +341,10 @@ class TestLangChainClaudeTool:
         """Test successful health check in production mode."""
         mock_response = MagicMock()
         mock_response.content = "OK - Claude is working"
-        
+
         mock_llm = AsyncMock()
         mock_llm.ainvoke.return_value = mock_response
-        
+
         with patch("tools.langchain_claude_tool.ChatAnthropic", return_value=mock_llm):
             with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
                 with patch("asyncio.create_subprocess_exec") as mock_subprocess:
@@ -352,11 +353,11 @@ class TestLangChainClaudeTool:
                     mock_process.returncode = 0
                     mock_process.communicate.return_value = (b"1.0.80 (Claude Code)", b"")
                     mock_subprocess.return_value = mock_process
-                    
+
                     tool = LangChainClaudeTool(dry_run=False)
-                    
+
                     result = await tool.health_check()
-                    
+
                     assert result["status"] == "healthy"
                     assert result["mode"] == "production"
                     assert result["langchain_api"] == "healthy"
@@ -367,7 +368,7 @@ class TestLangChainClaudeTool:
         """Test health check with LangChain API error but Claude CLI working."""
         mock_llm = AsyncMock()
         mock_llm.ainvoke.side_effect = Exception("Connection failed")
-        
+
         with patch("tools.langchain_claude_tool.ChatAnthropic", return_value=mock_llm):
             with patch.dict("os.environ", {"ANTHROPIC_API_KEY": "test-key"}):
                 with patch("asyncio.create_subprocess_exec") as mock_subprocess:
@@ -376,11 +377,11 @@ class TestLangChainClaudeTool:
                     mock_process.returncode = 0
                     mock_process.communicate.return_value = (b"1.0.80 (Claude Code)", b"")
                     mock_subprocess.return_value = mock_process
-                    
+
                     tool = LangChainClaudeTool(dry_run=False)
-                    
+
                     result = await tool.health_check()
-                    
+
                     # Should be partial: API fails but CLI works
                     assert result["status"] == "partial"
                     assert result["langchain_api"].startswith("unhealthy:")
@@ -393,16 +394,16 @@ class TestLangChainClaudeTool:
         tool = LangChainClaudeTool(dry_run=True)
         tool.dry_run = False  # Simulate state where LLM wasn't initialized
         tool.claude_llm = None
-        
+
         with patch("asyncio.create_subprocess_exec") as mock_subprocess:
             # Mock successful Claude CLI check
             mock_process = AsyncMock()
             mock_process.returncode = 0
             mock_process.communicate.return_value = (b"1.0.80 (Claude Code)", b"")
             mock_subprocess.return_value = mock_process
-            
+
             result = await tool.health_check()
-            
+
             # Should be partial: no LLM but CLI works
             assert result["status"] == "partial"
             assert result["langchain_api"] == "not_initialized"
@@ -421,7 +422,7 @@ class TestLangChainClaudeInput:
             pr_info={"number": 123, "title": "Fix bug"},
             project_context={"language": "Python"}
         )
-        
+
         assert input_data.operation == "analyze_failure"
         assert input_data.check_name == "Unit Tests"
         assert input_data.project_context["language"] == "Python"
@@ -435,7 +436,7 @@ class TestLangChainClaudeInput:
             pr_info={"number": 456},
             repository_path="/path/to/repo"
         )
-        
+
         assert input_data.operation == "fix_issue"
         assert input_data.repository_path == "/path/to/repo"
 
@@ -447,6 +448,6 @@ class TestLangChainClaudeInput:
             check_name="Test",
             pr_info={}
         )
-        
+
         assert input_data.project_context == {}
         assert input_data.repository_path is None

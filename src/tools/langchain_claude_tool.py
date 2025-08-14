@@ -1,7 +1,7 @@
 """LangChain-based Claude tool for PR Check Agent
 
 Hybrid approach:
-- Uses LangChain for failure analysis (structured outputs, better error handling)  
+- Uses LangChain for failure analysis (structured outputs, better error handling)
 - Uses Claude Code CLI for actual repository fixes (real file modifications)
 """
 
@@ -11,12 +11,12 @@ import subprocess  # nosec B404 - subprocess is used to invoke trusted Claude CL
 import tempfile
 import uuid
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain.tools import BaseTool
+from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate
-from langchain.tools import BaseTool
 from loguru import logger
 from pydantic import BaseModel, Field
 
@@ -31,8 +31,8 @@ class AnalysisResult(BaseModel):
     
     root_cause: str = Field(description="Root cause analysis of the failure")
     is_fixable: bool = Field(description="Whether this is automatically fixable")
-    fix_steps: List[str] = Field(description="Specific steps to resolve the issue")
-    side_effects: List[str] = Field(description="Potential side effects of the fix", default_factory=list)
+    fix_steps: list[str] = Field(description="Specific steps to resolve the issue")
+    side_effects: list[str] = Field(description="Potential side effects of the fix", default_factory=list)
     confidence: float = Field(description="Confidence in the analysis (0.0-1.0)", ge=0.0, le=1.0)
 
 
@@ -41,9 +41,9 @@ class FixResult(BaseModel):
     
     success: bool = Field(description="Whether the fix was successful")
     description: str = Field(description="Description of changes made")
-    files_affected: List[str] = Field(description="List of files that would be modified")
-    additional_steps: List[str] = Field(description="Additional steps needed", default_factory=list)
-    verification_commands: List[str] = Field(description="Commands to verify the fix", default_factory=list)
+    files_affected: list[str] = Field(description="List of files that would be modified")
+    additional_steps: list[str] = Field(description="Additional steps needed", default_factory=list)
+    verification_commands: list[str] = Field(description="Commands to verify the fix", default_factory=list)
 
 
 class LangChainClaudeInput(BaseModel):
@@ -52,9 +52,9 @@ class LangChainClaudeInput(BaseModel):
     operation: str = Field(description="Operation: 'analyze_failure' or 'fix_issue'")
     failure_context: str = Field(description="Context about the failure (logs, error messages)")
     check_name: str = Field(description="Name of the failing check")
-    pr_info: Dict[str, Any] = Field(description="PR information for context")
-    project_context: Dict[str, str] = Field(default={}, description="Project-specific context")
-    repository_path: Optional[str] = Field(default=None, description="Path to repository (for context)")
+    pr_info: dict[str, Any] = Field(description="PR information for context")
+    project_context: dict[str, str] = Field(default={}, description="Project-specific context")
+    repository_path: str | None = Field(default=None, description="Path to repository (for context)")
 
 
 class LangChainClaudeTool(BaseTool):
@@ -96,10 +96,10 @@ class LangChainClaudeTool(BaseTool):
         """Check if claude-code CLI is available."""
         try:
             result = subprocess.run(
-                ["claude", "--version"], 
-                check=False, 
-                capture_output=True, 
-                text=True, 
+                ["claude", "--version"],
+                check=False,
+                capture_output=True,
+                text=True,
                 timeout=10
             )  # nosec B603 B607 - trusted Claude CLI invocation
             
@@ -122,7 +122,7 @@ class LangChainClaudeTool(BaseTool):
             max_tokens=4096
         )
 
-    def _run(self, operation: str, **kwargs) -> Dict[str, Any]:
+    def _run(self, operation: str, **kwargs) -> dict[str, Any]:
         """Synchronous wrapper - not implemented for async tool."""
         raise NotImplementedError("Use _arun for async operation")
 
@@ -131,11 +131,11 @@ class LangChainClaudeTool(BaseTool):
         operation: str,
         failure_context: str,
         check_name: str,
-        pr_info: Dict[str, Any],
-        project_context: Optional[Dict[str, str]] = None,
-        repository_path: Optional[str] = None,
+        pr_info: dict[str, Any],
+        project_context: dict[str, str] | None = None,
+        repository_path: str | None = None,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Execute Claude operation using LangChain."""
         if project_context is None:
             project_context = {}
@@ -148,12 +148,11 @@ class LangChainClaudeTool(BaseTool):
                 return await self._analyze_failure_structured(
                     attempt_id, failure_context, check_name, pr_info, project_context
                 )
-            elif operation == "fix_issue":
+            if operation == "fix_issue":
                 return await self._fix_issue_structured(
                     attempt_id, failure_context, check_name, pr_info, project_context, repository_path
                 )
-            else:
-                raise ValueError(f"Unknown operation: {operation}")
+            raise ValueError(f"Unknown operation: {operation}")
 
         except Exception as e:
             logger.error(f"LangChain Claude error: {e}")
@@ -165,13 +164,13 @@ class LangChainClaudeTool(BaseTool):
             }
 
     async def _analyze_failure_structured(
-        self, 
-        attempt_id: str, 
-        failure_context: str, 
-        check_name: str, 
-        pr_info: Dict[str, Any], 
-        project_context: Dict[str, str]
-    ) -> Dict[str, Any]:
+        self,
+        attempt_id: str,
+        failure_context: str,
+        check_name: str,
+        pr_info: dict[str, Any],
+        project_context: dict[str, str]
+    ) -> dict[str, Any]:
         """Analyze failure using structured LangChain prompts."""
         logger.info(f"Analyzing failure for {check_name} (attempt {attempt_id})")
 
@@ -277,10 +276,10 @@ Please analyze this failure thoroughly and provide a structured response."""
         attempt_id: str,
         failure_context: str,
         check_name: str,
-        pr_info: Dict[str, Any],
-        project_context: Dict[str, str],
-        repository_path: Optional[str]
-    ) -> Dict[str, Any]:
+        pr_info: dict[str, Any],
+        project_context: dict[str, str],
+        repository_path: str | None
+    ) -> dict[str, Any]:
         """Fix issues using Claude Code CLI for actual file modifications."""
         logger.info(f"Attempting fix for {check_name} using Claude Code CLI (attempt {attempt_id})")
 
@@ -324,11 +323,11 @@ Please analyze this failure thoroughly and provide a structured response."""
             }
 
     def _create_fix_prompt(
-        self, 
-        failure_context: str, 
-        check_name: str, 
-        pr_info: Dict[str, Any], 
-        project_context: Dict[str, str]
+        self,
+        failure_context: str,
+        check_name: str,
+        pr_info: dict[str, Any],
+        project_context: dict[str, str]
     ) -> str:
         """Create prompt for automated fixing using Claude Code CLI."""
         prompt = f"""Fix this CI/CD check failure:
@@ -378,7 +377,7 @@ Please complete the following workflow:
      - Test results
      - Any additional steps needed
 
-**Important**: 
+**Important**:
 - Complete ALL steps, not just the code changes
 - If any step fails, document why and what manual intervention is needed
 - Ensure all changes are properly committed and pushed
@@ -387,10 +386,10 @@ Please complete the following workflow:
         return prompt
 
     async def _execute_claude_cli(
-        self, 
-        prompt: str, 
+        self,
+        prompt: str,
         working_directory: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Execute Claude Code CLI with the given prompt."""
         start_time = datetime.now()
         
@@ -444,16 +443,15 @@ Please complete the following workflow:
                     "git_diff": git_diff,
                     "duration_seconds": duration,
                 }
-            else:
-                error_msg = stderr.decode().strip()
-                logger.error(f"Claude Code CLI failed: {error_msg}")
-                return {
-                    "success": False,
-                    "error": error_msg,
-                    "duration_seconds": duration,
-                }
+            error_msg = stderr.decode().strip()
+            logger.error(f"Claude Code CLI failed: {error_msg}")
+            return {
+                "success": False,
+                "error": error_msg,
+                "duration_seconds": duration,
+            }
                 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.error("Claude Code CLI execution timed out")
             return {
                 "success": False,
@@ -468,7 +466,7 @@ Please complete the following workflow:
                 "duration_seconds": (datetime.now() - start_time).total_seconds(),
             }
 
-    async def _get_modified_files(self, working_directory: str) -> List[str]:
+    async def _get_modified_files(self, working_directory: str) -> list[str]:
         """Get list of files modified by Claude Code CLI."""
         try:
             process = await asyncio.create_subprocess_exec(
@@ -480,7 +478,7 @@ Please complete the following workflow:
             stdout, _ = await asyncio.wait_for(process.communicate(), timeout=10)
             
             if process.returncode == 0:
-                files = stdout.decode().strip().split('\n')
+                files = stdout.decode().strip().split("\n")
                 return [f for f in files if f.strip()]
             return []
         except Exception:
@@ -503,7 +501,7 @@ Please complete the following workflow:
         except Exception:
             return ""
 
-    def _format_project_context(self, project_context: Dict[str, str]) -> str:
+    def _format_project_context(self, project_context: dict[str, str]) -> str:
         """Format project context for prompt inclusion."""
         if not project_context:
             return "No additional project context provided."
@@ -533,14 +531,14 @@ Please complete the following workflow:
         
         return fixable_score > unfixable_score
 
-    def _extract_actions_heuristic(self, content: str) -> List[str]:
+    def _extract_actions_heuristic(self, content: str) -> list[str]:
         """Extract action items using heuristics."""
         lines = content.split("\n")
         actions = []
         
         for line in lines:
             line = line.strip()
-            if (line.startswith(("- ", "* ")) or 
+            if (line.startswith(("- ", "* ")) or
                 any(line.startswith(f"{i}.") for i in range(1, 10))):
                 
                 # Clean up the action text
@@ -555,7 +553,7 @@ Please complete the following workflow:
                     
         return actions[:5]  # Limit to 5 actions
 
-    def _mock_analyze_response(self, attempt_id: str, check_name: str) -> Dict[str, Any]:
+    def _mock_analyze_response(self, attempt_id: str, check_name: str) -> dict[str, Any]:
         """Mock response for analysis in dry-run mode."""
         return {
             "success": True,
@@ -573,7 +571,7 @@ Please complete the following workflow:
             "duration_seconds": 2.5,
         }
 
-    def _mock_fix_response(self, attempt_id: str, check_name: str) -> Dict[str, Any]:
+    def _mock_fix_response(self, attempt_id: str, check_name: str) -> dict[str, Any]:
         """Mock response for fixes in dry-run mode."""
         return {
             "success": True,
@@ -589,12 +587,12 @@ Please complete the following workflow:
             "duration_seconds": 15.0,  # Longer due to test execution
         }
 
-    async def health_check(self) -> Dict[str, Any]:
+    async def health_check(self) -> dict[str, Any]:
         """Perform health check on hybrid Claude integration."""
         try:
             if self.dry_run:
                 return {
-                    "status": "healthy", 
+                    "status": "healthy",
                     "mode": "dry_run",
                     "langchain_api": "available",
                     "claude_cli": "not_tested",
@@ -634,7 +632,7 @@ Please complete the following workflow:
                 health_status["claude_cli"] = f"unavailable: {cli_error}"
 
             # Overall status
-            if (health_status.get("langchain_api") == "healthy" and 
+            if (health_status.get("langchain_api") == "healthy" and
                 health_status.get("claude_cli") == "healthy"):
                 health_status["status"] = "healthy"
             else:
@@ -644,7 +642,7 @@ Please complete the following workflow:
 
         except Exception as e:
             return {
-                "status": "unhealthy", 
+                "status": "unhealthy",
                 "error": str(e),
                 "mode": "production",
                 "model": self.model

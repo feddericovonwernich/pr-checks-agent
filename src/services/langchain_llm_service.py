@@ -13,15 +13,13 @@ Benefits over direct API integration:
 - Built-in streaming and callbacks support
 """
 
-import json
 import os
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import Any
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
-from langchain_core.output_parsers import JsonOutputParser, PydanticOutputParser
-from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
+from langchain_core.messages import BaseMessage
+from langchain_core.output_parsers import PydanticOutputParser
+from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate
 from loguru import logger
 from pydantic import BaseModel, Field
 
@@ -37,8 +35,8 @@ except ImportError:
     ChatAnthropic = None  # type: ignore[assignment,misc]
 
 try:
-    from langchain_community.llms import Ollama
     from langchain_community.chat_models import ChatOllama
+    from langchain_community.llms import Ollama
 except ImportError:
     Ollama = None  # type: ignore[assignment,misc]
     ChatOllama = None  # type: ignore[assignment,misc]
@@ -50,10 +48,10 @@ class LLMResponse(BaseModel):
     content: str = Field(description="Response content")
     provider: str = Field(description="LLM provider used")
     model: str = Field(description="Model name used")
-    usage: Dict[str, Any] = Field(default_factory=dict, description="Usage statistics")
+    usage: dict[str, Any] = Field(default_factory=dict, description="Usage statistics")
     success: bool = Field(default=True, description="Whether the request succeeded")
-    error: Optional[str] = Field(default=None, description="Error message if failed")
-    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    error: str | None = Field(default=None, description="Error message if failed")
+    metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
 
 
 class FailureAnalysis(BaseModel):
@@ -73,18 +71,19 @@ class EscalationDecision(BaseModel):
     should_escalate: bool = Field(description="Whether this needs human attention")
     urgency: str = Field(description="Urgency level: low, medium, high, critical")
     reason: str = Field(description="Explanation of why escalation is/isn't needed")
-    suggested_actions: List[str] = Field(description="Specific actions for humans to take")
+    suggested_actions: list[str] = Field(description="Specific actions for humans to take")
     escalation_message: str = Field(description="Brief message to include in escalation notification")
 
 
 class LangChainLLMService:
     """Main LLM service using LangChain for provider abstraction."""
 
-    def __init__(self, provider_config: Dict[str, Any]):
+    def __init__(self, provider_config: dict[str, Any]):
         """Initialize LangChain LLM service with provider configuration.
 
         Args:
             provider_config: Configuration dict with provider, model, and other settings
+
         """
         self.config = provider_config
         self.provider_name = self.config.get("provider", "openai").lower()
@@ -106,7 +105,7 @@ class LangChainLLMService:
         # Provider-specific defaults
         defaults = {
             "openai": "gpt-4",
-            "anthropic": "claude-3-5-sonnet-20241022", 
+            "anthropic": "claude-3-5-sonnet-20241022",
             "ollama": "llama3.2"
         }
         return defaults.get(self.provider_name, "gpt-4")
@@ -115,12 +114,11 @@ class LangChainLLMService:
         """Create the appropriate LangChain LLM based on configuration."""
         if self.provider_name == "openai":
             return self._create_openai_llm()
-        elif self.provider_name == "anthropic":
+        if self.provider_name == "anthropic":
             return self._create_anthropic_llm()
-        elif self.provider_name == "ollama":
+        if self.provider_name == "ollama":
             return self._create_ollama_llm()
-        else:
-            raise ValueError(f"Unsupported LLM provider: {self.provider_name}")
+        raise ValueError(f"Unsupported LLM provider: {self.provider_name}")
 
     def _create_openai_llm(self) -> BaseChatModel:
         """Create OpenAI LangChain LLM."""
@@ -156,7 +154,7 @@ class LangChainLLMService:
             "max_tokens": self.config.get("max_tokens", 4096),
         }
         
-        # Optional API key override  
+        # Optional API key override
         if "api_key" in self.config:
             kwargs["api_key"] = self.config["api_key"]
         elif not os.getenv("ANTHROPIC_API_KEY"):
@@ -183,12 +181,12 @@ class LangChainLLMService:
         return ChatOllama(**kwargs)
 
     async def analyze_failure(
-        self, 
-        failure_context: str, 
-        check_name: str, 
-        pr_info: Dict[str, Any], 
-        project_context: Optional[Dict[str, str]] = None
-    ) -> Dict[str, Any]:
+        self,
+        failure_context: str,
+        check_name: str,
+        pr_info: dict[str, Any],
+        project_context: dict[str, str] | None = None
+    ) -> dict[str, Any]:
         """Analyze a CI/CD failure and determine next steps using structured output."""
         if project_context is None:
             project_context = {}
@@ -272,12 +270,12 @@ Please analyze this failure and provide your assessment."""
             }
 
     async def should_escalate(
-        self, 
-        failure_info: Dict[str, Any], 
-        fix_attempts: int, 
-        max_attempts: int, 
-        project_context: Optional[Dict[str, str]] = None
-    ) -> Dict[str, Any]:
+        self,
+        failure_info: dict[str, Any],
+        fix_attempts: int,
+        max_attempts: int,
+        project_context: dict[str, str] | None = None
+    ) -> dict[str, Any]:
         """Determine if an issue should be escalated to humans using structured output."""
         if project_context is None:
             project_context = {}
@@ -289,7 +287,7 @@ Please analyze this failure and provide your assessment."""
 
 Consider factors like:
 - Number of failed fix attempts
-- Severity and type of issue  
+- Severity and type of issue
 - Security implications
 - Project criticality
 - Whether the issue is automatically fixable
@@ -360,8 +358,8 @@ Should this issue be escalated to human developers? Provide your decision."""
             }
 
     async def generate_response(
-        self, 
-        messages: List[BaseMessage], 
+        self,
+        messages: list[BaseMessage],
         **kwargs
     ) -> LLMResponse:
         """Generic method to generate responses using LangChain."""
@@ -370,8 +368,8 @@ Should this issue be escalated to human developers? Provide your decision."""
             
             # Extract usage information if available
             usage = {}
-            if hasattr(response, 'response_metadata') and response.response_metadata:
-                token_usage = response.response_metadata.get('token_usage', {})
+            if hasattr(response, "response_metadata") and response.response_metadata:
+                token_usage = response.response_metadata.get("token_usage", {})
                 if token_usage:
                     usage = {
                         "prompt_tokens": token_usage.get("prompt_tokens", 0),
@@ -397,7 +395,7 @@ Should this issue be escalated to human developers? Provide your decision."""
                 error=str(e)
             )
 
-    def _format_project_context(self, project_context: Dict[str, str]) -> str:
+    def _format_project_context(self, project_context: dict[str, str]) -> str:
         """Format project context for prompt inclusion."""
         if not project_context:
             return "No additional context provided."
@@ -407,7 +405,7 @@ Should this issue be escalated to human developers? Provide your decision."""
             formatted.append(f"- {key}: {value}")
         return "\n".join(formatted)
 
-    def _parse_analysis_fallback(self, content: str) -> Dict[str, Any]:
+    def _parse_analysis_fallback(self, content: str) -> dict[str, Any]:
         """Fallback parsing for analysis when structured parsing fails."""
         # Simple heuristic parsing as fallback
         content_lower = content.lower()
@@ -426,7 +424,7 @@ Should this issue be escalated to human developers? Provide your decision."""
             "llm_model": self.model_name,
         }
 
-    def _parse_escalation_fallback(self, content: str) -> Dict[str, Any]:
+    def _parse_escalation_fallback(self, content: str) -> dict[str, Any]:
         """Fallback parsing for escalation when structured parsing fails."""
         content_lower = content.lower()
         
@@ -450,21 +448,21 @@ Should this issue be escalated to human developers? Provide your decision."""
             # Basic availability check - more sophisticated checks could be added
             if self.provider_name == "openai":
                 return ChatOpenAI is not None and (
-                    self.config.get("api_key") is not None or 
+                    self.config.get("api_key") is not None or
                     os.getenv("OPENAI_API_KEY") is not None
                 )
-            elif self.provider_name == "anthropic":
+            if self.provider_name == "anthropic":
                 return ChatAnthropic is not None and (
                     self.config.get("api_key") is not None or
                     os.getenv("ANTHROPIC_API_KEY") is not None
                 )
-            elif self.provider_name == "ollama":
+            if self.provider_name == "ollama":
                 return ChatOllama is not None
             return False
         except Exception:
             return False
 
-    def get_provider_info(self) -> Dict[str, Any]:
+    def get_provider_info(self) -> dict[str, Any]:
         """Get information about the current provider configuration."""
         return {
             "provider": self.provider_name,
