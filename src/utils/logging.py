@@ -2,7 +2,6 @@
 Sets up structured logging with JSON output and correlation IDs
 """
 
-import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -53,16 +52,16 @@ def setup_logging(level: str = "INFO", dev_mode: bool = False, log_file: str | N
         diagnose=True,
     )
 
-    # Add JSON file handler for structured logs
+    # Add JSON file handler for structured logs  
     if enable_json:
+        # For JSON logs, use serialize=True which handles JSON formatting automatically
         logger.add(
             "logs/pr-agent.json",
-            format=_json_formatter,
             level=level,
             rotation="10 MB",
             retention="30 days",
             compression="gz",
-            serialize=False,  # We handle serialization in _json_formatter
+            serialize=True,  # This tells loguru to output as JSON
         )
 
     # Add custom log file if specified
@@ -80,35 +79,7 @@ def setup_logging(level: str = "INFO", dev_mode: bool = False, log_file: str | N
     logger.info(f"Development mode: {dev_mode}")
 
 
-def _json_formatter(record) -> str:  # type: ignore[no-untyped-def]
-    """Custom JSON formatter for structured logging."""
-    # Extract basic record information
-    log_entry: dict[str, Any] = {
-        "timestamp": record["time"].isoformat(),
-        "level": record["level"].name,
-        "logger": record["name"],
-        "module": record["module"],
-        "function": record["function"],
-        "line": record["line"],
-        "message": record["message"],
-        "thread": record["thread"].name if record["thread"] else None,
-        "process": record["process"].name if record["process"] else None,
-    }
-
-    # Add exception information if present
-    if record["exception"]:
-        exc_info = {
-            "type": record["exception"].type.__name__ if record["exception"].type else None,
-            "value": str(record["exception"].value) if record["exception"].value else None,
-            "traceback": record["exception"].traceback if record["exception"].traceback else None,
-        }
-        log_entry["exception"] = exc_info
-
-    # Add extra fields from record["extra"]
-    if record["extra"]:
-        log_entry["extra"] = record["extra"]
-
-    return json.dumps(log_entry, default=str) + "\n"
+# Removed custom JSON formatter - using loguru's built-in serialize=True instead
 
 
 class ContextualLogger:
