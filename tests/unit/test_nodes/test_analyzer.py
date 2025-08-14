@@ -85,7 +85,7 @@ class TestFailureAnalyzerNode:
 
     @patch("src.nodes.analyzer.load_environment_config")
     @patch("src.nodes.analyzer.GitHubTool")
-    @patch("src.nodes.analyzer.LLMService")
+    @patch("src.nodes.analyzer.LangChainLLMService")
     @pytest.mark.asyncio
     async def test_failure_analyzer_node_successful_analysis(  # noqa: PLR0913
         self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state, sample_pr_state, sample_prioritized_failure
@@ -158,7 +158,7 @@ class TestFailureAnalyzerNode:
 
     @patch("src.nodes.analyzer.load_environment_config")
     @patch("src.nodes.analyzer.GitHubTool")
-    @patch("src.nodes.analyzer.LLMService")
+    @patch("src.nodes.analyzer.LangChainLLMService")
     @pytest.mark.asyncio
     async def test_failure_analyzer_node_unfixable_analysis(  # noqa: PLR0913
         self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state, sample_pr_state, sample_prioritized_failure
@@ -201,7 +201,7 @@ class TestFailureAnalyzerNode:
 
     @patch("src.nodes.analyzer.load_environment_config")
     @patch("src.nodes.analyzer.GitHubTool")
-    @patch("src.nodes.analyzer.LLMService")
+    @patch("src.nodes.analyzer.LangChainLLMService")
     @pytest.mark.asyncio
     async def test_failure_analyzer_node_claude_analysis_failure(  # noqa: PLR0913
         self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state, sample_pr_state, sample_prioritized_failure
@@ -235,7 +235,7 @@ class TestFailureAnalyzerNode:
 
     @patch("src.nodes.analyzer.load_environment_config")
     @patch("src.nodes.analyzer.GitHubTool")
-    @patch("src.nodes.analyzer.LLMService")
+    @patch("src.nodes.analyzer.LangChainLLMService")
     @pytest.mark.asyncio
     async def test_failure_analyzer_node_unexpected_exception(  # noqa: PLR0913
         self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state, sample_pr_state, sample_prioritized_failure
@@ -266,7 +266,7 @@ class TestFailureAnalyzerNode:
 
     @patch("src.nodes.analyzer.load_environment_config")
     @patch("src.nodes.analyzer.GitHubTool")
-    @patch("src.nodes.analyzer.LLMService")
+    @patch("src.nodes.analyzer.LangChainLLMService")
     @pytest.mark.asyncio
     async def test_failure_analyzer_node_multiple_failures(
         self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state
@@ -344,7 +344,7 @@ class TestFailureAnalyzerNode:
 
     @patch("src.nodes.analyzer.load_environment_config")
     @patch("src.nodes.analyzer.GitHubTool")
-    @patch("src.nodes.analyzer.LLMService")
+    @patch("src.nodes.analyzer.LangChainLLMService")
     @pytest.mark.asyncio
     async def test_failure_analyzer_node_dry_run_mode(  # noqa: PLR0913
         self, mock_llm_service, mock_github_tool, mock_load_env_config, base_state, sample_pr_state, sample_prioritized_failure
@@ -549,7 +549,7 @@ class TestAnalyzerIntegration:
 
     @patch("src.nodes.analyzer.load_environment_config")
     @patch("src.nodes.analyzer.GitHubTool")
-    @patch("src.nodes.analyzer.LLMService")
+    @patch("src.nodes.analyzer.LangChainLLMService")
     @pytest.mark.asyncio
     async def test_complete_analysis_workflow(self, mock_llm_service, mock_github_tool, mock_load_env_config):
         """Test complete analysis workflow from failure to decision."""

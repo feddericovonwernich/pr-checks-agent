@@ -33,7 +33,7 @@ class TestEscalationWorkflow:
 
         with (
             patch("nodes.scanner.GitHubTool") as mock_github_tool,
-            patch("nodes.invoker.ClaudeCodeTool") as mock_claude_tool,
+            patch("nodes.invoker.LangChainClaudeTool") as mock_claude_tool,
             patch("nodes.escalation.TelegramTool") as mock_telegram_tool,
         ):
             # Mock GitHub API tool calls
@@ -94,7 +94,7 @@ class TestEscalationWorkflow:
 
         with (
             patch("nodes.scanner.GitHubTool") as mock_github_tool,
-            patch("nodes.invoker.ClaudeCodeTool") as mock_claude_tool,
+            patch("nodes.invoker.LangChainClaudeTool") as mock_claude_tool,
             patch("nodes.escalation.TelegramTool") as mock_telegram_tool,
         ):
             # Mock GitHub API tool calls
@@ -157,7 +157,7 @@ class TestEscalationWorkflow:
 
         with (
             patch("nodes.scanner.GitHubTool") as mock_github_tool,
-            patch("nodes.invoker.ClaudeCodeTool") as mock_claude_tool,
+            patch("nodes.invoker.LangChainClaudeTool") as mock_claude_tool,
             patch("nodes.escalation.TelegramTool") as mock_telegram_tool,
         ):
             # Mock GitHub API tool calls
@@ -224,7 +224,7 @@ class TestEscalationWorkflow:
 
         with (
             patch("nodes.scanner.GitHubTool") as mock_github_tool,
-            patch("nodes.invoker.ClaudeCodeTool") as mock_claude_tool,
+            patch("nodes.invoker.LangChainClaudeTool") as mock_claude_tool,
             patch("nodes.escalation.TelegramTool") as mock_telegram_tool,
         ):
             # Mock GitHub API tool calls
