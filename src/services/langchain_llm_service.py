@@ -376,9 +376,7 @@ Should this issue be escalated to human developers? Provide your decision."""
                     }
 
             content = response.content if isinstance(response.content, str) else str(response.content)
-            return LLMResponse(
-                content=content, provider=self.provider_name, model=self.model_name, usage=usage, success=True
-            )
+            return LLMResponse(content=content, provider=self.provider_name, model=self.model_name, usage=usage, success=True)
 
         except Exception as e:
             logger.error(f"LangChain LLM generation error: {e}")
@@ -434,14 +432,10 @@ Should this issue be escalated to human developers? Provide your decision."""
         try:
             # Basic availability check - more sophisticated checks could be added
             if self.provider_name == "openai":
-                has_api_key = (
-                    self.config.get("api_key") is not None or os.getenv("OPENAI_API_KEY") is not None
-                )
+                has_api_key = self.config.get("api_key") is not None or os.getenv("OPENAI_API_KEY") is not None
                 return ChatOpenAI is not None and has_api_key
             if self.provider_name == "anthropic":
-                has_api_key = (
-                    self.config.get("api_key") is not None or os.getenv("ANTHROPIC_API_KEY") is not None
-                )
+                has_api_key = self.config.get("api_key") is not None or os.getenv("ANTHROPIC_API_KEY") is not None
                 return ChatAnthropic is not None and has_api_key
             if self.provider_name == "ollama":
                 return ChatOllama is not None
