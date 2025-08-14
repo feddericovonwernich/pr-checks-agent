@@ -217,7 +217,8 @@ Please analyze this failure thoroughly and provide a structured response."""
 
             # Parse structured output
             try:
-                analysis_data = self.analysis_parser.parse(response.content)
+                content = response.content if isinstance(response.content, str) else str(response.content)
+                analysis_data = self.analysis_parser.parse(content)
 
                 return {
                     "success": True,
@@ -228,22 +229,23 @@ Please analyze this failure thoroughly and provide a structured response."""
                     "confidence": analysis_data.confidence,
                     "attempt_id": attempt_id,
                     "duration_seconds": duration,
-                    "raw_response": response.content,
+                    "raw_response": content,
                 }
 
             except Exception as parse_error:
                 logger.warning(f"Failed to parse structured analysis output: {parse_error}")
                 # Fallback to unstructured
+                content = response.content if isinstance(response.content, str) else str(response.content)
                 return {
                     "success": True,
-                    "analysis": response.content,
-                    "fixable": self._heuristic_is_fixable(response.content),
-                    "suggested_actions": self._extract_actions_heuristic(response.content),
+                    "analysis": content,
+                    "fixable": self._heuristic_is_fixable(content),
+                    "suggested_actions": self._extract_actions_heuristic(content),
                     "side_effects": [],
                     "confidence": 0.7,
                     "attempt_id": attempt_id,
                     "duration_seconds": duration,
-                    "raw_response": response.content,
+                    "raw_response": content,
                 }
 
         except Exception as e:
