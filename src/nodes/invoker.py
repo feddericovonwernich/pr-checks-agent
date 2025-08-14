@@ -26,6 +26,15 @@ async def claude_invoker_node(state: MonitorState) -> dict[str, Any]:
     config = state["config"]
     analysis_results = state.get("analysis_results", [])
     workflow_step = state.get("workflow_step", "unknown")
+    
+    # CRITICAL DEBUG: Log the full incoming state
+    logger.debug("🔍 INVOKER RECEIVED STATE:")
+    logger.debug(f"🔍   Repository: {repository}")
+    logger.debug(f"🔍   Workflow step: {workflow_step}")
+    logger.debug(f"🔍   Analysis results count: {len(analysis_results)}")
+    logger.debug(f"🔍   All state keys: {list(state.keys())}")
+    logger.debug(f"🔍   Analysis results type: {type(analysis_results)}")
+    logger.debug(f"🔍   Analysis results content: {analysis_results}")
 
     # Get fixable issues
     fixable_issues = [result for result in analysis_results if result.get("fixable", False)]

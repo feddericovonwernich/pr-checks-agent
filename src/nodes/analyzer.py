@@ -161,7 +161,8 @@ async def failure_analyzer_node(state: MonitorState) -> dict[str, Any]:  # noqa:
     fixable_count = sum(1 for result in analysis_results if result["fixable"])
     logger.info(f"Analysis complete: {fixable_count}/{len(analysis_results)} issues are fixable")
 
-    return {
+    # CRITICAL DEBUG: Log what we're returning from analyzer
+    returned_state = {
         **state,
         "active_prs": updated_prs,
         "analysis_results": analysis_results,
@@ -170,7 +171,15 @@ async def failure_analyzer_node(state: MonitorState) -> dict[str, Any]:  # noqa:
             "fixable_count": fixable_count,
             "timestamp": datetime.now(),
         },
+        "workflow_step": "analyzed"  # Set explicit workflow step
     }
+    
+    logger.debug(f"🔄 Analyzer returning state with {len(analysis_results)} analysis_results")
+    logger.debug(f"🔄 Returned analysis_results: {analysis_results}")
+    logger.debug(f"🔄 Returned state keys: {list(returned_state.keys())}")
+    logger.debug("🔄 Setting workflow_step to 'analyzed'")
+
+    return returned_state
 
 
 async def _get_failure_context(github_tool: GitHubTool, repository: str, check_info: dict[str, Any], check_name: str) -> str:  # noqa: PLR0915, PLR0912
@@ -310,8 +319,15 @@ def should_attempt_fixes(state: MonitorState) -> str:
     """LangGraph edge function to determine if we should attempt fixes."""
     analysis_results = state.get("analysis_results", [])
     repository = state.get("repository", "unknown")
+    workflow_step = state.get("workflow_step", "unknown")
     
     logger.debug(f"🤔 Evaluating whether to attempt fixes for {len(analysis_results)} analysis results in {repository}")
+    logger.debug(f"🤔 Current workflow_step in should_attempt_fixes: {workflow_step}")
+    
+    # CRITICAL DEBUG: Log the full state keys to see what's available
+    logger.debug(f"🔍 Available state keys: {list(state.keys())}")
+    logger.debug(f"🔍 State analysis_results type: {type(state.get('analysis_results'))}")
+    logger.debug(f"🔍 State analysis_results content: {state.get('analysis_results', [])}")
 
     # Check if any issues are fixable
     fixable_issues = [result for result in analysis_results if result.get("fixable", False)]
