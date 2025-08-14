@@ -58,6 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       security-events: write
+      contents: read
     steps:
     - uses: actions/checkout@v5
     
@@ -73,7 +74,8 @@ jobs:
     
     - name: Security audit with Bandit
       run: |
-        bandit -r src/ -f json -o bandit-report.json || true
+        # Generate both SARIF for GitHub Security and human-readable output
+        bandit -r src/ -f sarif -o bandit-report.sarif || true
         bandit -r src/ -f txt
       continue-on-error: true
     
@@ -81,7 +83,7 @@ jobs:
       uses: github/codeql-action/upload-sarif@v3
       if: always()
       with:
-        sarif_file: bandit-report.json
+        sarif_file: bandit-report.sarif
       continue-on-error: true
     
     - name: Check dependencies with Safety
@@ -111,13 +113,16 @@ jobs:
       with:
         name: security-reports
         path: |
-          bandit-report.json
+          bandit-report.sarif
           safety-report.json
           pip-audit-report.json
 
   # Vulnerability Scanning
   vulnerability-scan:
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
     steps:
     - uses: actions/checkout@v5
     

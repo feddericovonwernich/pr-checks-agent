@@ -79,6 +79,8 @@ temp/
 
 # Security scan reports
 bandit-report*.json
+bandit-report*.sarif
+trivy-results.sarif
 
 # Docker
 .dockerignore
