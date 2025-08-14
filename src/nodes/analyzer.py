@@ -200,10 +200,11 @@ async def _get_failure_context(github_tool: GitHubTool, repository: str, check_i
         logger.debug(f"⏰ Completed at: {completed_at}")
         context_parts.append(f"Completed: {completed_at}")
 
-    # Try to get detailed logs if check run ID is available
+    # Try to get detailed logs from GitHub
     details_url = check_info.get("details_url", "")
     logger.debug(f"🔗 Details URL: {details_url}")
     
+    # Handle different URL patterns
     if "check-runs" in details_url:
         try:
             # Extract check run ID from URL
@@ -216,24 +217,72 @@ async def _get_failure_context(github_tool: GitHubTool, repository: str, check_i
                     operation="get_check_logs", repository=repository, check_run_id=int(check_run_id)
                 )
                 
-                logger.debug(f"📥 Logs fetch result: {logs_result}")
+                logger.debug(f"📥 Check logs fetch result: {logs_result}")
 
                 if logs_result.get("success", False):
                     logs = logs_result.get("logs", [])
-                    logger.debug(f"📝 Retrieved {len(logs)} log entries")
+                    logger.debug(f"📝 Retrieved {len(logs)} check log entries")
                     if logs:
                         context_parts.append("\nFailure Details:")
                         context_parts.extend(logs)
-                        logger.debug(f"✅ Added detailed logs to context ({len(logs)} entries)")
+                        logger.debug(f"✅ Added detailed check logs to context ({len(logs)} entries)")
                     else:
-                        logger.debug("⚠️ No logs found in successful response")
+                        logger.debug("⚠️ No check logs found in successful response")
                 else:
-                    logger.debug(f"❌ Failed to fetch logs: {logs_result.get('error', 'Unknown error')}")
+                    logger.debug(f"❌ Failed to fetch check logs: {logs_result.get('error', 'Unknown error')}")
             else:
                 logger.debug(f"⚠️ Check run ID is not numeric: {check_run_id}")
         except Exception as e:
-            logger.debug(f"💥 Exception getting detailed logs for {check_name}: {e}")
-            logger.debug(f"📋 Logs fetch traceback:\n{traceback.format_exc()}")
+            logger.debug(f"💥 Exception getting check run logs for {check_name}: {e}")
+            logger.debug(f"📋 Check logs fetch traceback:\n{traceback.format_exc()}")
+    
+    elif "actions/runs" in details_url and "/job/" in details_url:
+        try:
+            # Extract job ID from GitHub Actions job URL
+            # URL format: https://github.com/owner/repo/actions/runs/16926578302/job/47963305999
+            url_parts = details_url.split("/")
+            job_id = url_parts[-1]  # Last part is job ID
+            logger.debug(f"🆔 Extracted GitHub Actions job ID: {job_id}")
+            
+            if job_id.isdigit():
+                logger.debug(f"📞 Fetching GitHub Actions job logs for job ID: {job_id}")
+                logs_result = await github_tool._arun(
+                    operation="get_job_logs", repository=repository, job_id=int(job_id)
+                )
+                
+                logger.debug(f"📥 Job logs fetch result: {logs_result}")
+
+                if logs_result.get("success", False):
+                    logs = logs_result.get("logs", [])
+                    job_name = logs_result.get("job_name", "")
+                    logger.debug(f"📝 Retrieved {len(logs)} GitHub Actions job log entries for '{job_name}'")
+                    if logs:
+                        context_parts.append(f"\nGitHub Actions Job Failure Details ({job_name}):")
+                        context_parts.extend(logs)
+                        logger.debug(f"✅ Added detailed GitHub Actions job logs to context ({len(logs)} entries)")
+                        
+                        # Add job metadata
+                        if logs_result.get("started_at"):
+                            context_parts.append(f"Job Started: {logs_result['started_at']}")
+                        if logs_result.get("completed_at"):
+                            context_parts.append(f"Job Completed: {logs_result['completed_at']}")
+                        if logs_result.get("full_logs_length"):
+                            context_parts.append(f"Full log length: {logs_result['full_logs_length']} lines")
+                    else:
+                        logger.debug("⚠️ No GitHub Actions job logs found in successful response")
+                else:
+                    logger.debug(f"❌ Failed to fetch GitHub Actions job logs: {logs_result.get('error', 'Unknown error')}")
+                    # Still add available job info even if logs failed
+                    if logs_result.get("job_name"):
+                        context_parts.append(f"\nJob: {logs_result['job_name']} (logs unavailable)")
+            else:
+                logger.debug(f"⚠️ GitHub Actions job ID is not numeric: {job_id}")
+        except Exception as e:
+            logger.debug(f"💥 Exception getting GitHub Actions job logs for {check_name}: {e}")
+            logger.debug(f"📋 Job logs fetch traceback:\n{traceback.format_exc()}")
+    
+    else:
+        logger.debug(f"⚠️ Unrecognized details URL pattern: {details_url}")
 
     # Add any failure logs from the check info
     if check_info.get("failure_logs"):

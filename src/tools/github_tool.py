@@ -20,10 +20,12 @@ from src.state.schemas import CheckInfo, CheckStatus, PRInfo
 class GitHubAPIInput(BaseModel):
     """Input schema for GitHub API operations."""
 
-    operation: str = Field(description="Operation to perform: 'get_prs', 'get_checks', 'get_check_logs'")
+    operation: str = Field(description="Operation to perform: 'get_prs', 'get_checks', 'get_check_logs', 'get_job_logs'")
     repository: str = Field(description="Repository in format 'owner/repo'")
     pr_number: int | None = Field(default=None, description="PR number for PR-specific operations")
     check_run_id: int | None = Field(default=None, description="Check run ID for log retrieval")
+    job_id: int | None = Field(default=None, description="Job ID for GitHub Actions job log retrieval")
+    run_id: int | None = Field(default=None, description="Run ID for GitHub Actions workflow logs")
     branch_filter: list[str] | None = Field(default=None, description="Filter PRs by branches")
 
 
@@ -59,6 +61,8 @@ class GitHubTool(BaseTool):
         repository: str,
         pr_number: int | None = None,
         check_run_id: int | None = None,
+        job_id: int | None = None,
+        run_id: int | None = None,
         branch_filter: list[str] | None = None,
         **kwargs,
     ) -> dict[str, Any]:
@@ -74,6 +78,10 @@ class GitHubTool(BaseTool):
                 if not check_run_id:
                     raise ValueError("Check run ID required for get_check_logs operation")
                 return await self._get_check_logs(repository, check_run_id)
+            if operation == "get_job_logs":
+                if not job_id:
+                    raise ValueError("Job ID required for get_job_logs operation")
+                return await self._get_job_logs(repository, job_id)
             raise ValueError(f"Unknown operation: {operation}")
 
         except Exception as e:
@@ -234,6 +242,97 @@ class GitHubTool(BaseTool):
 
         except Exception as e:
             logger.error(f"Error getting check logs for {check_run_id}: {e}")
+            return {"error": str(e), "success": False}
+
+    async def _get_job_logs(self, repository: str, job_id: int) -> dict[str, Any]:
+        """Get logs for a specific GitHub Actions job."""
+        try:
+            logger.debug(f"🔍 Fetching GitHub Actions job logs for job ID: {job_id}")
+            
+            # Use direct API call for job logs
+            async with aiohttp.ClientSession() as session:
+                headers = {
+                    "Authorization": f"token {self.github_token}",
+                    "Accept": "application/vnd.github.v3+json"
+                }
+
+                # Get job details first
+                job_url = f"https://api.github.com/repos/{repository}/actions/jobs/{job_id}"
+                logger.debug(f"📞 Requesting job details from: {job_url}")
+                
+                async with session.get(job_url, headers=headers) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        logger.debug(f"❌ Job details request failed with status {response.status}: {error_text}")
+                        raise Exception(f"Failed to get job details: {response.status} - {error_text}")
+                    
+                    job_data = await response.json()
+                    logger.debug(f"✅ Job details retrieved: {job_data.get('name', 'Unknown')} - {job_data.get('conclusion', 'Unknown')}")
+
+                # Get job logs
+                logs_url = f"{job_url}/logs"
+                logger.debug(f"📞 Requesting job logs from: {logs_url}")
+                
+                async with session.get(logs_url, headers=headers) as response:
+                    if response.status == 200:
+                        # Logs come as plain text
+                        logs_text = await response.text()
+                        logger.debug(f"✅ Job logs retrieved ({len(logs_text)} characters)")
+                        
+                        # Split logs into lines and filter for errors/relevant info
+                        log_lines = logs_text.split("\n")
+                        
+                        # Extract relevant error lines (look for common error patterns)
+                        error_lines = []
+                        important_lines = []
+                        
+                        for line in log_lines:
+                            line_lower = line.lower()
+                            # Look for error patterns
+                            if any(pattern in line_lower for pattern in [
+                                "error:", "failed:", "exception:", "traceback:", "fatal:",
+                                "denied:", "not found:", "invalid:", "missing:", "unable to",
+                                "process completed with exit code"
+                            ]):
+                                error_lines.append(line.strip())
+                            # Look for important context
+                            elif any(pattern in line_lower for pattern in [
+                                "run ", "step ", "building", "installing", "running"
+                            ]) and line.strip():
+                                important_lines.append(line.strip())
+                        
+                        # Combine error lines and some context
+                        relevant_logs = error_lines + important_lines[-20:]  # Last 20 context lines
+                        
+                        return {
+                            "success": True,
+                            "logs": relevant_logs[:50],  # Limit to 50 most relevant lines
+                            "full_logs_length": len(log_lines),
+                            "job_name": job_data.get("name", ""),
+                            "conclusion": job_data.get("conclusion", ""),
+                            "started_at": job_data.get("started_at", ""),
+                            "completed_at": job_data.get("completed_at", ""),
+                            "run_id": job_data.get("run_id", ""),
+                        }
+                    if response.status == 404:
+                        logger.debug("⚠️ Job logs not found - may not be available yet or job is still running")
+                        return {
+                            "success": False,
+                            "error": "Job logs not available (404)",
+                            "job_name": job_data.get("name", ""),
+                            "conclusion": job_data.get("conclusion", ""),
+                        }
+                    error_text = await response.text()
+                    logger.debug(f"❌ Job logs request failed with status {response.status}: {error_text}")
+                    return {
+                        "success": False,
+                        "error": f"Failed to get job logs: {response.status} - {error_text}",
+                        "job_name": job_data.get("name", ""),
+                        "conclusion": job_data.get("conclusion", ""),
+                    }
+
+        except Exception as e:
+            logger.error(f"Error getting job logs for {job_id}: {e}")
             return {"error": str(e), "success": False}
 
     def _map_check_status(self, status: str, conclusion: str | None) -> CheckStatus:
