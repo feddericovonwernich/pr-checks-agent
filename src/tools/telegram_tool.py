@@ -3,7 +3,10 @@ Handles human escalation notifications as a LangGraph tool
 """
 
 import asyncio
+import hashlib
 import os
+import time
+import traceback
 from datetime import datetime
 from typing import Any
 
@@ -12,6 +15,153 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import TelegramError
+
+
+def retry_with_exponential_backoff(max_retries: int = 3, base_delay: float = 1.0, max_delay: float = 60.0):
+    """Decorator to retry async functions with exponential backoff."""
+
+    def decorator(func):
+        async def wrapper(*args, **kwargs):
+            func_name = func.__name__
+            start_time = time.time()
+            last_exception = None
+
+            # Extract context for logging if available
+            context_info = ""
+            if len(args) > 0 and hasattr(args[0], "__class__"):
+                if hasattr(args[0], "name"):
+                    context_info = f" [{args[0].name}]"
+                elif hasattr(args[0], "__class__"):
+                    context_info = f" [{args[0].__class__.__name__}]"
+
+            # Log retry attempt start
+            if max_retries > 0:
+                logger.info(
+                    f"Starting {func_name}{context_info} with retry policy: max_retries={max_retries}, base_delay={base_delay}s, max_delay={max_delay}s"
+                )
+
+            for attempt in range(max_retries + 1):  # +1 for the initial attempt
+                attempt_start_time = time.time()
+
+                try:
+                    # Log attempt start (except for first attempt to reduce noise)
+                    if attempt > 0:
+                        logger.info(f"🔄 {func_name}{context_info} attempt #{attempt + 1}/{max_retries + 1}")
+
+                    result = await func(*args, **kwargs)
+
+                    # Log successful completion
+                    total_duration = time.time() - start_time
+                    if attempt > 0:
+                        logger.info(
+                            f"✅ {func_name}{context_info} succeeded on attempt #{attempt + 1} after {total_duration:.2f}s total"
+                        )
+                    elif max_retries > 0:
+                        logger.debug(f"✅ {func_name}{context_info} succeeded on first attempt ({total_duration:.2f}s)")
+
+                    return result
+
+                except TelegramError as e:
+                    last_exception = e
+                    attempt_duration = time.time() - attempt_start_time
+                    error_type = type(e).__name__
+
+                    # Don't retry on certain errors that are unlikely to be transient
+                    error_msg_lower = str(e).lower().replace("_", "")
+                    if "buttondatainvalid" in error_msg_lower or "button data invalid" in error_msg_lower:
+                        logger.warning(
+                            f"⚠️ {func_name}{context_info} attempt #{attempt + 1} failed with {error_type}: {e} (took {attempt_duration:.2f}s)"
+                        )
+                        logger.warning("🔧 Button data too long detected, switching to simplified buttons for next attempt")
+
+                        # Log full exception details to console for debugging
+                        exc_details = traceback.format_exc()
+                        logger.debug(f"Button data invalid exception traceback:\n{exc_details}")
+
+                        # Set a flag to simplify buttons on retry if this is a method call on TelegramTool
+                        if len(args) > 0 and hasattr(args[0], "_should_simplify_buttons"):
+                            args[0]._should_simplify_buttons = True
+
+                    elif "chat not found" in str(e).lower() or "forbidden" in str(e).lower():
+                        total_duration = time.time() - start_time
+                        logger.error(
+                            f"❌ {func_name}{context_info} permanent error on attempt #{attempt + 1}: {e} (total time: {total_duration:.2f}s)"
+                        )
+                        logger.error(f"🚫 Not retrying due to permanent error type: {error_type}")
+
+                        # Log full exception details to console for permanent errors
+                        exc_details = traceback.format_exc()
+                        logger.error(f"Permanent error exception traceback:\n{exc_details}")
+                        break
+                    else:
+                        logger.warning(
+                            f"⚠️ {func_name}{context_info} attempt #{attempt + 1} failed with {error_type}: {e} (took {attempt_duration:.2f}s)"
+                        )
+
+                        # Log exception traceback for unexpected Telegram errors
+                        exc_details = traceback.format_exc()
+                        logger.debug(f"TelegramError exception traceback:\n{exc_details}")
+
+                    if attempt < max_retries:
+                        delay = min(base_delay * (2**attempt), max_delay)
+                        logger.info(
+                            f"⏳ Retrying {func_name}{context_info} in {delay:.1f}s... (attempt {attempt + 2}/{max_retries + 1})"
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        total_duration = time.time() - start_time
+                        logger.error(
+                            f"❌ {func_name}{context_info} failed all {max_retries + 1} attempts. Total time: {total_duration:.2f}s, Final error: {e}"
+                        )
+
+                        # Log final exception details to console
+                        exc_details = traceback.format_exc()
+                        logger.error(f"Final TelegramError exception traceback:\n{exc_details}")
+
+                except Exception as e:
+                    last_exception = e
+                    attempt_duration = time.time() - attempt_start_time
+                    error_type = type(e).__name__
+
+                    logger.warning(
+                        f"⚠️ {func_name}{context_info} attempt #{attempt + 1} failed with unexpected {error_type}: {e} (took {attempt_duration:.2f}s)"
+                    )
+
+                    # Always log full traceback for unexpected exceptions to console
+                    exc_details = traceback.format_exc()
+                    logger.error(f"Unexpected exception traceback:\n{exc_details}")
+
+                    if attempt < max_retries:
+                        delay = min(base_delay * (2**attempt), max_delay)
+                        logger.info(
+                            f"⏳ Retrying {func_name}{context_info} in {delay:.1f}s... (attempt {attempt + 2}/{max_retries + 1})"
+                        )
+                        await asyncio.sleep(delay)
+                    else:
+                        total_duration = time.time() - start_time
+                        logger.error(
+                            f"❌ {func_name}{context_info} failed all {max_retries + 1} attempts. Total time: {total_duration:.2f}s, Final error: {e}"
+                        )
+
+                        # Log final exception details to console
+                        exc_details = traceback.format_exc()
+                        logger.error(f"Final unexpected exception traceback:\n{exc_details}")
+
+            # If we get here, all attempts failed
+            total_duration = time.time() - start_time
+            logger.error(
+                f"💥 {func_name}{context_info} exhausted all retry attempts ({max_retries + 1}) in {total_duration:.2f}s"
+            )
+            return {
+                "success": False,
+                "error": str(last_exception),
+                "attempts": max_retries + 1,
+                "total_duration": total_duration,
+            }
+
+        return wrapper
+
+    return decorator
 
 
 class TelegramInput(BaseModel):
@@ -43,6 +193,7 @@ class TelegramTool(BaseTool):
         self.dry_run = dry_run
         self.bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
         self.chat_id = os.getenv("TELEGRAM_CHAT_ID")
+        self._should_simplify_buttons = False
 
         if not self.bot_token or not self.chat_id:
             if not dry_run:
@@ -52,6 +203,46 @@ class TelegramTool(BaseTool):
         self.bot = Bot(token=self.bot_token) if self.bot_token and not dry_run else None
 
         logger.info(f"Telegram tool initialized (dry_run={dry_run})")
+
+    def _create_simplified_keyboard(self, repository: str, pr_number: int, check_name: str) -> InlineKeyboardMarkup:
+        """Create simplified keyboard with shorter callback data to avoid button_data_invalid errors."""
+        # Use hash to shorten long repository/check names
+        repo_hash = hashlib.md5(repository.encode()).hexdigest()[:8]
+        check_hash = hashlib.md5(check_name.encode()).hexdigest()[:8]
+
+        return InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton("🔍 View PR", url=f"https://github.com/{repository}/pull/{pr_number}"),
+                ],
+                [
+                    InlineKeyboardButton("✅ Acknowledge", callback_data=f"ack_{repo_hash}_{pr_number}_{check_hash}"),
+                    InlineKeyboardButton("⏸️ Snooze", callback_data=f"snz_{repo_hash}_{pr_number}_{check_hash}"),
+                ],
+                [
+                    InlineKeyboardButton("🔇 Disable", callback_data=f"dis_{repo_hash}_{pr_number}"),
+                ],
+            ]
+        )
+
+    def _create_full_keyboard(self, repository: str, pr_number: int, check_name: str) -> InlineKeyboardMarkup:
+        """Create full keyboard with all options."""
+        return InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton("🔍 View PR", url=f"https://github.com/{repository}/pull/{pr_number}"),
+                    InlineKeyboardButton("📋 View Checks", callback_data=f"checks_{repository}_{pr_number}"),
+                ],
+                [
+                    InlineKeyboardButton("✅ Acknowledge", callback_data=f"ack_{repository}_{pr_number}_{check_name}"),
+                    InlineKeyboardButton("⏸️ Snooze 1h", callback_data=f"snooze_1_{repository}_{pr_number}_{check_name}"),
+                ],
+                [
+                    InlineKeyboardButton("🔇 Disable for this PR", callback_data=f"disable_{repository}_{pr_number}"),
+                    InlineKeyboardButton("🛠️ Manual Fix", callback_data=f"manual_{repository}_{pr_number}_{check_name}"),
+                ],
+            ]
+        )
 
     def _run(self, operation: str, **kwargs) -> dict[str, Any]:
         """Synchronous wrapper for async operations."""
@@ -90,6 +281,7 @@ class TelegramTool(BaseTool):
             logger.error(f"Telegram error: {e}")
             return {"success": False, "error": str(e)}
 
+    @retry_with_exponential_backoff(max_retries=3, base_delay=1.0, max_delay=30.0)
     async def _send_escalation(
         self,
         repository: str,
@@ -112,43 +304,29 @@ class TelegramTool(BaseTool):
         )
 
         # Create inline keyboard for quick actions
-        keyboard = InlineKeyboardMarkup(
-            [
-                [
-                    InlineKeyboardButton("🔍 View PR", url=f"https://github.com/{repository}/pull/{pr_number}"),
-                    InlineKeyboardButton("📋 View Checks", callback_data=f"checks_{repository}_{pr_number}"),
-                ],
-                [
-                    InlineKeyboardButton("✅ Acknowledge", callback_data=f"ack_{repository}_{pr_number}_{check_name}"),
-                    InlineKeyboardButton("⏸️ Snooze 1h", callback_data=f"snooze_1_{repository}_{pr_number}_{check_name}"),
-                ],
-                [
-                    InlineKeyboardButton("🔇 Disable for this PR", callback_data=f"disable_{repository}_{pr_number}"),
-                    InlineKeyboardButton("🛠️ Manual Fix", callback_data=f"manual_{repository}_{pr_number}_{check_name}"),
-                ],
-            ]
+        # Use simplified keyboard if button_data_invalid error occurred previously
+        if self._should_simplify_buttons:
+            keyboard = self._create_simplified_keyboard(repository, pr_number, check_name)
+            logger.info("Using simplified keyboard due to previous button_data_invalid error")
+        else:
+            keyboard = self._create_full_keyboard(repository, pr_number, check_name)
+
+        if self.bot is None or self.chat_id is None:
+            return {"success": False, "error": "Bot or chat_id not configured"}
+
+        # Send message - let the retry decorator handle any TelegramErrors
+        sent_message = await self.bot.send_message(
+            chat_id=self.chat_id, text=message, parse_mode="Markdown", reply_markup=keyboard, disable_web_page_preview=True
         )
 
-        try:
-            if self.bot is None or self.chat_id is None:
-                return {"success": False, "error": "Bot or chat_id not configured"}
+        return {
+            "success": True,
+            "message_id": sent_message.message_id,
+            "chat_id": self.chat_id,
+            "timestamp": datetime.now().isoformat(),
+        }
 
-            # Send message
-            sent_message = await self.bot.send_message(
-                chat_id=self.chat_id, text=message, parse_mode="Markdown", reply_markup=keyboard, disable_web_page_preview=True
-            )
-
-            return {
-                "success": True,
-                "message_id": sent_message.message_id,
-                "chat_id": self.chat_id,
-                "timestamp": datetime.now().isoformat(),
-            }
-
-        except TelegramError as e:
-            logger.error(f"Failed to send escalation: {e}")
-            return {"success": False, "error": str(e)}
-
+    @retry_with_exponential_backoff(max_retries=2, base_delay=1.0, max_delay=10.0)
     async def _send_status_update(self, repository: str, pr_number: int, check_name: str, status: str) -> dict[str, Any]:
         """Send status update notification."""
         logger.info(f"Sending status update for {repository} PR #{pr_number}")
@@ -167,18 +345,14 @@ class TelegramTool(BaseTool):
 _Automated update from PR Check Agent_
 """
 
-        try:
-            if self.bot is None or self.chat_id is None:
-                return {"success": False, "error": "Bot or chat_id not configured"}
+        if self.bot is None or self.chat_id is None:
+            return {"success": False, "error": "Bot or chat_id not configured"}
 
-            await self.bot.send_message(chat_id=self.chat_id, text=message, parse_mode="Markdown")
+        await self.bot.send_message(chat_id=self.chat_id, text=message, parse_mode="Markdown")
 
-            return {"success": True, "message": "Status update sent"}
+        return {"success": True, "message": "Status update sent"}
 
-        except TelegramError as e:
-            logger.error(f"Failed to send status update: {e}")
-            return {"success": False, "error": str(e)}
-
+    @retry_with_exponential_backoff(max_retries=2, base_delay=1.0, max_delay=10.0)
     async def _send_daily_summary(self) -> dict[str, Any]:
         """Send daily summary of agent activity."""
         if self.dry_run:
@@ -204,17 +378,12 @@ _Automated update from PR Check Agent_
 _Automated summary from PR Check Agent_
 """
 
-        try:
-            if self.bot is None or self.chat_id is None:
-                return {"success": False, "error": "Bot or chat_id not configured"}
+        if self.bot is None or self.chat_id is None:
+            return {"success": False, "error": "Bot or chat_id not configured"}
 
-            await self.bot.send_message(chat_id=self.chat_id, text=message, parse_mode="Markdown")
+        await self.bot.send_message(chat_id=self.chat_id, text=message, parse_mode="Markdown")
 
-            return {"success": True, "message": "Daily summary sent"}
-
-        except TelegramError as e:
-            logger.error(f"Failed to send daily summary: {e}")
-            return {"success": False, "error": str(e)}
+        return {"success": True, "message": "Daily summary sent"}
 
     def _create_escalation_message(
         self,

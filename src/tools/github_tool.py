@@ -221,7 +221,7 @@ class GitHubTool(BaseTool):
                 for annotation in annotations:
                     message = annotation.get("message", "")
                     filename = annotation.get("path", "")
-                    line = annotation.get("start_line", "")
+                    line = annotation.get("start_line", 0)
                     logs.append(f"{filename}:{line} - {message}")
 
                 return {

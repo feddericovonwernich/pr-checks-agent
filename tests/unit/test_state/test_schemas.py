@@ -190,14 +190,14 @@ class TestEscalationRecord:
             timestamp=now,
             check_name="Tests",
             reason="Complex test failure",
-            telegram_message_id="msg_789",
+            telegram_message_id=789,
             status=EscalationStatus.RESOLVED,
             acknowledged_by="@dev-lead",
             acknowledged_at=acked_at,
             resolution_notes="Fixed by updating test data",
         )
 
-        assert escalation.telegram_message_id == "msg_789"
+        assert escalation.telegram_message_id == 789
         assert escalation.status == EscalationStatus.RESOLVED
         assert escalation.acknowledged_by == "@dev-lead"
         assert escalation.acknowledged_at == acked_at
