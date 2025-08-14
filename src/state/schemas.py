@@ -168,6 +168,9 @@ class MonitorState(TypedDict):
     consecutive_errors: int
     last_error: str | None
 
+    # Analysis
+    prioritized_failures: list[dict[str, Any]]
+
     # Metrics
     total_prs_processed: int
     total_fixes_attempted: int

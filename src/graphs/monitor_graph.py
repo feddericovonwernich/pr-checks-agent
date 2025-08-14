@@ -187,6 +187,7 @@ def create_initial_state(repository: str, config, polling_interval: int = 300, w
         "workflow_semaphore": workflow_semaphore,
         "consecutive_errors": 0,
         "last_error": None,
+        "prioritized_failures": [],
         "total_prs_processed": 0,
         "total_fixes_attempted": 0,
         "total_fixes_successful": 0,
