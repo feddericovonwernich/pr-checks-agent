@@ -298,6 +298,49 @@ langgraph draw src/graphs/monitor_graph.py --output monitor_graph.png
 python src/main.py --trace --dashboard
 ```
 
+## 🔧 Troubleshooting
+
+### Debug Logging
+
+The agent includes comprehensive debug logging with emoji tags for easy filtering:
+
+```bash
+# Enable debug logging
+export LOG_LEVEL=DEBUG
+python src/main.py --dev
+
+# View analyzer workflow
+grep "🔍\|🤖\|📊\|✅\|❌" logs/pr-agent.log
+
+# Check LLM interactions  
+grep "🤖\|📤\|📥" logs/pr-agent.log
+
+# Monitor GitHub API calls
+grep "🔗\|📞\|📝" logs/pr-agent.log
+```
+
+### Common Issues
+
+**Issue: No failures detected**
+```bash
+# Check GitHub API connectivity and permissions
+grep "GitHub.*error\|403\|401" logs/pr-agent.log
+```
+
+**Issue: Analysis failing**  
+```bash
+# Check LLM provider connectivity
+grep "LLM.*error\|❌.*Analysis" logs/pr-agent.log
+```
+
+**Issue: Fixes not being attempted**
+```bash  
+# Check fixability decisions
+grep "🤔\|📊\|Decision" logs/pr-agent.log
+```
+
+For comprehensive troubleshooting guides and detailed debug logging documentation, see **[DEV.md](./DEV.md#debug-logging)**.
+
 ## 🚢 Deployment
 
 ### Production Considerations

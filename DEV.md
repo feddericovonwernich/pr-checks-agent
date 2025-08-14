@@ -118,3 +118,150 @@ curl http://localhost:8080/health | jq
 # View application logs with debug
 python src/main.py --dev --log-level DEBUG
 ```
+
+## Debug Logging
+
+The PR Check Agent includes comprehensive debug logging to help troubleshoot analyzer behavior and pipeline failures.
+
+### Analyzer Debug Logging
+
+The analyzer node (`src/nodes/analyzer.py`) includes detailed debug logs for troubleshooting failure analysis:
+
+#### 🔍 Context Building Logs
+```bash
+# View failure context building process
+grep "🔍\|📦\|🔧\|⏰\|🔗" logs/pr-agent.log
+
+# Example output:
+# 🔍 Building failure context for CI Build
+# 📦 Repository: owner/repo  
+# 🔧 Available check_info keys: ['status', 'conclusion', 'details_url']
+# ⏰ Started at: 2025-01-15T10:30:00Z
+# 🔗 Details URL: https://api.github.com/repos/owner/repo/check-runs/123
+```
+
+#### 🤖 LLM Interaction Logs
+```bash
+# View Claude LLM analysis process
+grep "🤖\|📤\|📥\|✅\|❌" logs/pr-agent.log
+
+# Example output:
+# 🤖 Sending failure to LLM for analysis...
+# 📤 LLM Analysis Input:
+#   - Check Name: CI Build
+#   - Failure Context Length: 1247 chars
+# 📥 LLM Analysis Result: {"success": true, "fixable": true}
+# ✅ Analysis successful for CI Build:
+#   🔧 Fixable: True
+#   📋 Analysis: Build failure due to missing dependency...
+#   🎯 Suggested Actions (3):
+#     1. Add missing dependency to requirements.txt
+#     2. Update package versions
+#     3. Run tests to verify fix
+```
+
+#### 📞 GitHub API Debug Logs
+```bash
+# View GitHub API interactions
+grep "📞\|📝\|💥\|🆔" logs/pr-agent.log
+
+# Example output:
+# 🆔 Extracted check run ID: 123456789
+# 📞 Fetching detailed logs for check run ID: 123456789
+# 📝 Retrieved 15 log entries
+# ✅ Added detailed logs to context (15 entries)
+```
+
+#### 🤔 Decision Making Logs
+```bash
+# View fixability decisions
+grep "🤔\|📊\|🎯\|🚫" logs/pr-agent.log
+
+# Example output:
+# 🤔 Evaluating whether to attempt fixes for 2 analysis results
+# 📊 Fix evaluation results:
+#   🔧 Fixable issues: 1
+#   🚫 Unfixable issues: 1
+# ✅ Decision: attempt_fixes (found 1 fixable issues)
+# 🎯 Fixable #1: CI Build - Build failure due to missing dependency...
+```
+
+### Log Filtering Commands
+
+Use these commands to debug specific aspects:
+
+```bash
+# All analyzer activity
+grep "🔍\|🤖\|📊\|✅\|❌" logs/pr-agent.log
+
+# Error analysis only
+grep "💥\|❌\|🚫" logs/pr-agent.log
+
+# Successful analysis only  
+grep "✅\|🎯" logs/pr-agent.log
+
+# GitHub API calls
+grep "🔗\|📞\|📝" logs/pr-agent.log
+
+# LLM interactions
+grep "🤖\|📤\|📥" logs/pr-agent.log
+
+# Decision making
+grep "🤔\|📊\|⏳" logs/pr-agent.log
+```
+
+### Debug Log Levels
+
+Set appropriate log levels for different scenarios:
+
+```bash
+# Full debug output (includes all analyzer debug logs)
+export LOG_LEVEL=DEBUG
+python src/main.py --dev
+
+# Info level (shows analysis results but not detailed debug)
+export LOG_LEVEL=INFO  
+python src/main.py --dev
+
+# Error level only (shows only failures)
+export LOG_LEVEL=ERROR
+python src/main.py --dev
+```
+
+### Troubleshooting Analyzer Issues
+
+**Problem: Analyzer not detecting failures**
+```bash
+# Check if failures are being detected
+grep "Analyzing failure" logs/pr-agent.log
+
+# Verify GitHub API connectivity
+grep "📞\|🔗" logs/pr-agent.log
+```
+
+**Problem: LLM analysis failing**
+```bash
+# Check LLM requests and responses
+grep "🤖\|📤\|📥" logs/pr-agent.log
+
+# Look for API errors
+grep "❌.*LLM" logs/pr-agent.log
+```
+
+**Problem: Issues not being classified as fixable**
+```bash
+# View analysis results and decisions
+grep "🔧\|📊\|🤔" logs/pr-agent.log
+
+# Check confidence scores and suggested actions
+grep "📊.*Confidence\|🎯.*Suggested" logs/pr-agent.log
+```
+
+**Problem: Context building failures**
+```bash
+# Check GitHub API log fetching
+grep "💥.*logs\|❌.*fetch" logs/pr-agent.log
+
+# Verify check run ID extraction
+grep "🆔.*check run ID" logs/pr-agent.log
+```
