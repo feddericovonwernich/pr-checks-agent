@@ -18,7 +18,7 @@ from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, SystemMessagePromptTemplate
 from loguru import logger
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, SecretStr
 
 try:
     from langchain_anthropic import ChatAnthropic
@@ -81,7 +81,7 @@ class LangChainClaudeTool(BaseTool):
         if not dry_run:
             self.claude_llm = self._create_claude_llm()
         else:
-            self.claude_llm = None
+            self.claude_llm = None  # type: ignore[assignment]
 
         # Check Claude Code CLI availability
         self._check_claude_cli()
@@ -109,7 +109,17 @@ class LangChainClaudeTool(BaseTool):
         if ChatAnthropic is None:
             raise ImportError("langchain-anthropic package required. Install with: pip install langchain-anthropic")
 
-        return ChatAnthropic(model=self.model, api_key=self.anthropic_api_key, temperature=0.1, max_tokens=4096)
+        if not self.anthropic_api_key:
+            raise ValueError("Anthropic API key is required")
+
+        return ChatAnthropic(
+            model_name=self.model,
+            api_key=SecretStr(self.anthropic_api_key),
+            temperature=0.1,
+            max_tokens_to_sample=4096,
+            timeout=60.0,
+            stop=[],
+        )
 
     def _run(self, operation: str, **kwargs) -> dict[str, Any]:
         """Synchronous wrapper - not implemented for async tool."""
@@ -587,9 +597,8 @@ Please complete the following workflow:
                     test_message = HumanMessage(content="Hello, respond with 'OK' if you can hear me.")
                     response = await self.claude_llm.ainvoke([test_message])
                     health_status["langchain_api"] = "healthy"
-                    health_status["langchain_test_response"] = (
-                        response.content[:50] + "..." if len(response.content) > 50 else response.content
-                    )
+                    content = response.content if isinstance(response.content, str) else str(response.content)
+                    health_status["langchain_test_response"] = content[:50] + "..." if len(content) > 50 else content
                 except Exception as api_error:
                     health_status["langchain_api"] = f"unhealthy: {api_error}"
             else:

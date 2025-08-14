@@ -53,7 +53,7 @@ class TestLangChainClaudeTool:
                 assert tool.model == "claude-3-haiku-20240307"
                 # Verify ChatAnthropic was called with correct model
                 call_kwargs = mock_anthropic.call_args[1]
-                assert call_kwargs["model"] == "claude-3-haiku-20240307"
+                assert call_kwargs["model_name"] == "claude-3-haiku-20240307"
 
     @pytest.mark.asyncio
     async def test_analyze_failure_dry_run(self):
