@@ -244,7 +244,7 @@ class TestLangChainLLMService:
         config = {"provider": "openai"}
 
         with patch("services.langchain_llm_service.ChatOpenAI"), patch("os.getenv", return_value=None):
-            service = LangChainLLMService(config)
+            service = LangChainLLMService(config, strict_validation=False)
             assert service.is_available() is False
 
     def test_is_available_anthropic_with_env_key(self):

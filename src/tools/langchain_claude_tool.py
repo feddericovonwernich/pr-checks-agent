@@ -380,7 +380,8 @@ Please complete the following workflow:
 
             # Set environment with API key
             env = os.environ.copy()
-            env["ANTHROPIC_API_KEY"] = self.anthropic_api_key
+            if self.anthropic_api_key:
+                env["ANTHROPIC_API_KEY"] = self.anthropic_api_key
 
             logger.info(f"Executing Claude Code CLI in {working_directory}")
 
@@ -556,7 +557,7 @@ Please complete the following workflow:
             "files_modified": ["src/example.py", "tests/test_example.py", "requirements.txt"],
             "git_diff": "Mock git diff showing the changes made",
             "additional_steps": [],  # All steps completed by Claude
-            "verification_commands": [],  # Already executed by Claude
+            "verification_commands": ["pytest", "ruff check", "mypy"],  # Commands that were run
             "commit_sha": "abc123def456",  # Mock commit SHA
             "push_status": "Successfully pushed to origin/feature-branch",
             "test_results": "All tests passed (15 passed, 0 failed)",

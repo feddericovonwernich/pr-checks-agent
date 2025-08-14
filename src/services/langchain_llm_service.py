@@ -78,16 +78,18 @@ class EscalationDecision(BaseModel):
 class LangChainLLMService:
     """Main LLM service using LangChain for provider abstraction."""
 
-    def __init__(self, provider_config: dict[str, Any]):
+    def __init__(self, provider_config: dict[str, Any], strict_validation: bool = True):
         """Initialize LangChain LLM service with provider configuration.
 
         Args:
             provider_config: Configuration dict with provider, model, and other settings
+            strict_validation: If True, require valid API keys during initialization
 
         """
         self.config = provider_config
         self.provider_name = self.config.get("provider", "openai").lower()
         self.model_name = self._get_model_name()
+        self.strict_validation = strict_validation
         self.llm = self._create_llm()
 
         # Initialize output parsers
@@ -130,8 +132,13 @@ class LangChainLLMService:
         # Optional API key override
         if "api_key" in self.config:
             kwargs["api_key"] = self.config["api_key"]
-        elif not os.getenv("OPENAI_API_KEY"):
+        elif os.getenv("OPENAI_API_KEY"):
+            kwargs["api_key"] = os.getenv("OPENAI_API_KEY")
+        elif self.strict_validation:
             raise ValueError("OPENAI_API_KEY environment variable or config api_key required")
+        else:
+            # For testing purposes, allow creation without API key (will fail at runtime)
+            kwargs["api_key"] = "dummy-key"
 
         # Optional base URL for custom endpoints
         if "base_url" in self.config:
@@ -153,8 +160,13 @@ class LangChainLLMService:
         # Optional API key override
         if "api_key" in self.config:
             kwargs["api_key"] = self.config["api_key"]
-        elif not os.getenv("ANTHROPIC_API_KEY"):
+        elif os.getenv("ANTHROPIC_API_KEY"):
+            kwargs["api_key"] = os.getenv("ANTHROPIC_API_KEY")
+        elif self.strict_validation:
             raise ValueError("ANTHROPIC_API_KEY environment variable or config api_key required")
+        else:
+            # For testing purposes, allow creation without API key (will fail at runtime)
+            kwargs["api_key"] = "dummy-key"
 
         return ChatAnthropic(**kwargs)
 
@@ -233,7 +245,8 @@ Please analyze this failure and provide your assessment."""
 
             # Parse structured output
             try:
-                analysis_data = self.failure_analysis_parser.parse(response.content)
+                content = response.content if isinstance(response.content, str) else str(response.content)
+                analysis_data = self.failure_analysis_parser.parse(content)
                 result = analysis_data.dict()
                 result.update(
                     {
@@ -247,7 +260,8 @@ Please analyze this failure and provide your assessment."""
             except Exception as parse_error:
                 logger.warning(f"Failed to parse structured output, falling back to raw content: {parse_error}")
                 # Fallback to unstructured parsing
-                return self._parse_analysis_fallback(response.content)
+                content = response.content if isinstance(response.content, str) else str(response.content)
+                return self._parse_analysis_fallback(content)
 
         except Exception as e:
             logger.error(f"LangChain LLM error during failure analysis: {e}")
@@ -316,7 +330,8 @@ Should this issue be escalated to human developers? Provide your decision."""
 
             # Parse structured output
             try:
-                escalation_data = self.escalation_parser.parse(response.content)
+                content = response.content if isinstance(response.content, str) else str(response.content)
+                escalation_data = self.escalation_parser.parse(content)
                 result = escalation_data.dict()
                 result.update(
                     {
@@ -328,7 +343,8 @@ Should this issue be escalated to human developers? Provide your decision."""
 
             except Exception as parse_error:
                 logger.warning(f"Failed to parse escalation output, falling back: {parse_error}")
-                return self._parse_escalation_fallback(response.content)
+                content = response.content if isinstance(response.content, str) else str(response.content)
+                return self._parse_escalation_fallback(content)
 
         except Exception as e:
             logger.error(f"LangChain LLM error during escalation decision: {e}")
@@ -359,8 +375,9 @@ Should this issue be escalated to human developers? Provide your decision."""
                         "total_tokens": token_usage.get("total_tokens", 0),
                     }
 
+            content = response.content if isinstance(response.content, str) else str(response.content)
             return LLMResponse(
-                content=response.content, provider=self.provider_name, model=self.model_name, usage=usage, success=True
+                content=content, provider=self.provider_name, model=self.model_name, usage=usage, success=True
             )
 
         except Exception as e:
@@ -417,13 +434,15 @@ Should this issue be escalated to human developers? Provide your decision."""
         try:
             # Basic availability check - more sophisticated checks could be added
             if self.provider_name == "openai":
-                return ChatOpenAI is not None and (
+                has_api_key = (
                     self.config.get("api_key") is not None or os.getenv("OPENAI_API_KEY") is not None
                 )
+                return ChatOpenAI is not None and has_api_key
             if self.provider_name == "anthropic":
-                return ChatAnthropic is not None and (
+                has_api_key = (
                     self.config.get("api_key") is not None or os.getenv("ANTHROPIC_API_KEY") is not None
                 )
+                return ChatAnthropic is not None and has_api_key
             if self.provider_name == "ollama":
                 return ChatOllama is not None
             return False
