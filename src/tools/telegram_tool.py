@@ -7,6 +7,7 @@ import hashlib
 import os
 import time
 import traceback
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 from typing import Any
 
@@ -17,11 +18,11 @@ from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import TelegramError
 
 
-def retry_with_exponential_backoff(max_retries: int = 3, base_delay: float = 1.0, max_delay: float = 60.0):
+def retry_with_exponential_backoff(max_retries: int = 3, base_delay: float = 1.0, max_delay: float = 60.0):  # noqa: PLR0915
     """Decorator to retry async functions with exponential backoff."""
 
-    def decorator(func):
-        async def wrapper(*args, **kwargs):
+    def decorator(func: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:  # noqa: PLR0915
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:  # noqa: PLR0915, PLR0912
             func_name = func.__name__
             start_time = time.time()
             last_exception = None
@@ -207,8 +208,8 @@ class TelegramTool(BaseTool):
     def _create_simplified_keyboard(self, repository: str, pr_number: int, check_name: str) -> InlineKeyboardMarkup:
         """Create simplified keyboard with shorter callback data to avoid button_data_invalid errors."""
         # Use hash to shorten long repository/check names
-        repo_hash = hashlib.md5(repository.encode()).hexdigest()[:8]
-        check_hash = hashlib.md5(check_name.encode()).hexdigest()[:8]
+        repo_hash = hashlib.sha256(repository.encode()).hexdigest()[:8]
+        check_hash = hashlib.sha256(check_name.encode()).hexdigest()[:8]
 
         return InlineKeyboardMarkup(
             [
