@@ -85,7 +85,7 @@ class GitHubTool(BaseTool):
         try:
             repo = self.github.get_repo(repository)
             pulls = repo.get_pulls(state="open")
-            
+
             logger.debug(f"Fetching PRs for {repository} with branch filter: {branch_filter}")
 
             pr_list = []
@@ -93,13 +93,13 @@ class GitHubTool(BaseTool):
             for pr in pulls:
                 total_prs += 1
                 logger.debug(f"Found PR #{pr.number}: '{pr.title}' (base: {pr.base.ref}, head: {pr.head.ref})")
-                
+
                 # Apply branch filter if specified
                 if branch_filter:
                     # Check if the head branch (source branch) matches any filter pattern
                     branch_matches = False
                     for pattern in branch_filter:
-                        if '*' in pattern:
+                        if "*" in pattern:
                             # Handle wildcard patterns
                             if fnmatch.fnmatch(pr.head.ref, pattern):
                                 branch_matches = True
@@ -108,7 +108,7 @@ class GitHubTool(BaseTool):
                             # Exact match
                             branch_matches = True
                             break
-                    
+
                     if not branch_matches:
                         logger.debug(f"Skipping PR #{pr.number} - head branch '{pr.head.ref}' doesn't match filters")
                         continue

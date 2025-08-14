@@ -13,7 +13,7 @@ import uvloop
 from dotenv import load_dotenv
 from loguru import logger
 
-from graphs.monitor_graph import create_monitor_graph, create_initial_state
+from graphs.monitor_graph import create_initial_state, create_monitor_graph
 from utils.config import Config
 from utils.logging import setup_logging
 from utils.monitoring import start_monitoring_server

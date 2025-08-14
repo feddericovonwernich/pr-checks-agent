@@ -52,7 +52,7 @@ def setup_logging(level: str = "INFO", dev_mode: bool = False, log_file: str | N
         diagnose=True,
     )
 
-    # Add JSON file handler for structured logs  
+    # Add JSON file handler for structured logs
     if enable_json:
         # For JSON logs, use serialize=True which handles JSON formatting automatically
         logger.add(

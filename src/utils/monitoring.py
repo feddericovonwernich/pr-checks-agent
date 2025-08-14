@@ -129,7 +129,7 @@ class MonitoringServer:
         overall_status = "healthy"
         if redis_health["status"] == "unhealthy":
             overall_status = "degraded"  # Service can still run without Redis, but with reduced functionality
-        
+
         # Update stats health status
         self.stats["health_status"] = overall_status
 
@@ -140,9 +140,7 @@ class MonitoringServer:
             "version": "0.1.0",
             "repositories_monitored": len(self.stats["repositories"]),
             "recent_errors": len([event for event in self.stats["recent_events"][-10:] if event.get("type") == "error"]),
-            "dependencies": {
-                "redis": redis_health
-            }
+            "dependencies": {"redis": redis_health},
         }
 
         # Return 200 for healthy, 200 for degraded (service still works), 503 for unhealthy
